@@ -6,7 +6,8 @@
 - A vibe coding product —— local image viewer built with Electron and React, featuring a Pinterest-style waterfall layout, infinite scrolling, directory navigation, deletion and fav.
 
 ![](./imgs/image_10.avif)
-![](./imgs/image_9.avif)
+![](./imgs/image_12.avif)
+![](./imgs/image_11.avif)
 
 ## ✨ Key Features
 

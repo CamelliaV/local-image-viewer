@@ -9,10 +9,10 @@ const {
   protocol
 } = require('electron')
 const path = require('path')
-const fs = require('fs').promises
+const fs = require('fs').promises // Use promises for async operations
 const fsSync = require('fs')
 const fastGlob = require('fast-glob')
-const { pathToFileURL, fileURLToPath } = require('url') // <-- Import Node.js URL helpers
+const { pathToFileURL, fileURLToPath } = require('url')
 
 let mainWindow
 
@@ -36,8 +36,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-      webSecurity: false
+      preload: path.join(__dirname, 'preload.js')
     },
     show: false
   })
@@ -52,24 +51,19 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // --- ROBUST PROTOCOL HANDLER ---
   protocol.registerFileProtocol('local-image', (request, callback) => {
     try {
-      // 1. Reconstruct the original file:// URL
       const fileUrl = request.url.replace('local-image://', 'file://')
-      // 2. Use the standard, safe Node.js function to convert the URL to a path
       const filePath = fileURLToPath(fileUrl)
-
-      // 3. Serve the file if it exists
       if (fsSync.existsSync(filePath)) {
         callback({ path: filePath })
       } else {
         console.error('File not found for protocol request:', filePath)
-        callback({ error: -6 }) // FILE_NOT_FOUND
+        callback({ error: -6 })
       }
     } catch (error) {
       console.error('Protocol handler error:', error, 'for URL:', request.url)
-      callback({ error: -2 }) // GENERIC_FAILURE
+      callback({ error: -2 })
     }
   })
 
@@ -85,6 +79,46 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
+  }
+})
+
+// --- IPC HANDLERS ---
+
+// Get path to favorites and create it if needed
+ipcMain.handle('get-favorites-dir', () => {
+  const picturesPath = app.getPath('pictures')
+  const favoritesPath = path.join(picturesPath, 'Starred Images')
+
+  // Create the directory on first run if it doesn't exist
+  if (!fsSync.existsSync(favoritesPath)) {
+    fsSync.mkdirSync(favoritesPath, { recursive: true })
+  }
+  return favoritesPath
+})
+
+// Copy an image to the favorites directory
+ipcMain.handle('star-image', async (event, sourcePath) => {
+  try {
+    const picturesPath = app.getPath('pictures')
+    const favoritesPath = path.join(picturesPath, 'Starred Images')
+    const destinationPath = path.join(favoritesPath, path.basename(sourcePath))
+
+    // Check if file already exists to avoid errors
+    if (fsSync.existsSync(destinationPath)) {
+      console.log('Image already starred:', destinationPath)
+      return {
+        success: true,
+        message: 'Image already exists in Starred folder.'
+      }
+    }
+
+    // Perform the copy
+    await fs.copyFile(sourcePath, destinationPath)
+    console.log('Copied to stars:', destinationPath)
+    return { success: true, message: 'Image copied to Starred folder.' }
+  } catch (error) {
+    console.error('Failed to star image:', error)
+    throw new Error(`Could not copy file: ${error.message}`)
   }
 })
 
@@ -115,18 +149,18 @@ ipcMain.handle('get-images', async (event, dirPath) => {
     })
 
     const images = await Promise.all(
-      files.map(async (filePath) => {
+      files.map(async filePath => {
         try {
           const normalizedFilePath = path.normalize(filePath)
           if (!fsSync.existsSync(normalizedFilePath)) return null
 
           const stats = await fs.stat(normalizedFilePath)
-          const relativePath = path.relative(normalizedDirPath, normalizedFilePath)
-          
-          // --- ROBUST URL CREATION ---
-          // 1. Use the standard Node.js function to create a valid file URL
+          const relativePath = path.relative(
+            normalizedDirPath,
+            normalizedFilePath
+          )
+
           const fileUrl = pathToFileURL(normalizedFilePath).href
-          // 2. Replace the scheme for our custom protocol
           const customUrl = fileUrl.replace('file://', 'local-image://')
 
           return {
@@ -135,7 +169,10 @@ ipcMain.handle('get-images', async (event, dirPath) => {
             fullPath: normalizedFilePath,
             size: stats.size,
             lastModified: stats.mtime.getTime(),
-            directory: path.dirname(relativePath) === '.' ? 'Root' : path.dirname(relativePath),
+            directory:
+              path.dirname(relativePath) === '.'
+                ? 'Root'
+                : path.dirname(relativePath),
             url: customUrl
           }
         } catch (error) {
@@ -145,7 +182,7 @@ ipcMain.handle('get-images', async (event, dirPath) => {
       })
     )
 
-    const validImages = images.filter((img) => img !== null)
+    const validImages = images.filter(img => img !== null)
     return validImages.sort((a, b) => a.name.localeCompare(b.name))
   } catch (error) {
     console.error('Get images error:', error)
@@ -153,12 +190,11 @@ ipcMain.handle('get-images', async (event, dirPath) => {
   }
 })
 
-// --- MODIFIED TO HANDLE BATCH DELETION ---
 ipcMain.handle('delete-image', async (event, filePaths) => {
   try {
     const pathsToDelete = Array.isArray(filePaths) ? filePaths : [filePaths]
     if (pathsToDelete.length === 0) return true
-    
+
     const normalizedPaths = pathsToDelete.map(p => path.normalize(p))
     if (!trash) {
       trash = (await import('trash')).default

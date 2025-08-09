@@ -267,7 +267,8 @@
           onClose,
           onDelete,
           onOpenLocation,
-          onNavigate
+          onNavigate,
+          onStar
         }) => {
           if (!selectedImage) return null
           const currentIndex = useMemo(
@@ -293,6 +294,7 @@
             document.addEventListener('keydown', handleKeyPress)
             return () => document.removeEventListener('keydown', handleKeyPress)
           }, [onClose, showPrevious, showNext])
+
           return (
             <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
               <div className="relative max-w-full max-h-full p-4">
@@ -322,6 +324,14 @@
                 >
                   📁
                 </button>
+                <button
+                  onClick={() => onStar(selectedImage)}
+                  className="absolute top-28 left-4 bg-yellow-400 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all text-lg"
+                  title="Copy to Starred folder"
+                >
+                  ⭐
+                </button>
+
                 {currentIndex > 0 && (
                   <button
                     onClick={showPrevious}
@@ -379,6 +389,7 @@
         const [selectedForDeletion, setSelectedForDeletion] = useState(
           new Set()
         )
+        const [favoritesDir, setFavoritesDir] = useState('')
 
         const scrollContainerRef = useRef(null)
         const loadMoreObserverRef = useRef(null)
@@ -400,6 +411,14 @@
           localStorage.setItem('darkMode', darkMode.toString())
         }, [darkMode])
 
+        useEffect(() => {
+          const fetchFavoritesDir = async () => {
+            const dir = await window.electronAPI.getFavoritesDir()
+            setFavoritesDir(dir)
+          }
+          fetchFavoritesDir()
+        }, [])
+
         const handleDirSelect = useCallback(async () => {
           try {
             setLoading(true)
@@ -410,7 +429,6 @@
               setDeleteMode(false)
               const images = await window.electronAPI.getImages(dirPath)
               setAllImages(images)
-              // Set the selectedDir state to trigger the main reset effect
               setSelectedDir(dirPath)
             }
           } catch (error) {
@@ -421,17 +439,12 @@
           }
         }, [])
 
-        // --- THE DEFINITIVE FIX ---
-        // This effect is the single source of truth for resetting the view.
-        // It runs ONLY when the user's context (the directory or the search term) changes.
-        // It does NOT run on deletion, which prevents the "jump to top" bug.
-        // It DOES run on new directory selection, which fixes the infinite scroll bug.
         useEffect(() => {
           setDisplayedImages(filteredImages.slice(0, BATCH_SIZE))
           if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollTop = 0
           }
-        }, [searchTerm, selectedDir]) // Note the dependency array is the key to this solution
+        }, [searchTerm, selectedDir])
 
         const loadMoreImages = useCallback(() => {
           if (loadingMore || !hasMore) return
@@ -469,7 +482,6 @@
           }
         }, [loadMoreImages, hasMore, loadingMore])
 
-        // This delete function remains a surgical operation. It does not trigger the reset effect.
         const handleBatchDelete = useCallback(
           async pathsToDelete => {
             const numToDelete = pathsToDelete.length
@@ -481,7 +493,6 @@
               await window.electronAPI.deleteImage(pathsToDelete)
               const deletedPathsSet = new Set(pathsToDelete)
 
-              // By updating both state arrays at once, we avoid triggering the side effect hook.
               setAllImages(prev =>
                 prev.filter(img => !deletedPathsSet.has(img.fullPath))
               )
@@ -500,6 +511,35 @@
           },
           [selectedImage, selectedForDeletion]
         )
+
+        const handleStarImage = useCallback(async image => {
+          try {
+            const result = await window.electronAPI.starImage(image.fullPath)
+            // We can use a more subtle notification system in the future
+            alert(result.message)
+          } catch (error) {
+            console.error('Failed to star image:', error)
+            alert(`Error: ${error.message}`)
+          }
+        }, [])
+
+        const viewFavorites = useCallback(async () => {
+          if (!favoritesDir || loading) return
+          try {
+            setLoading(true)
+            setSearchTerm('')
+            setSelectedForDeletion(new Set())
+            setDeleteMode(false)
+            const images = await window.electronAPI.getImages(favoritesDir)
+            setAllImages(images)
+            setSelectedDir(favoritesDir)
+          } catch (error) {
+            console.error('Failed to load favorites:', error)
+            alert(`Error loading favorites: ${error.message}`)
+          } finally {
+            setLoading(false)
+          }
+        }, [favoritesDir, loading])
 
         const handleToggleDeleteMode = () => {
           setDeleteMode(prev => {
@@ -573,6 +613,18 @@
                         : selectedDir
                         ? window.path.basename(selectedDir)
                         : 'Select Directory'}
+                    </button>
+                    <button
+                      onClick={viewFavorites}
+                      disabled={!favoritesDir || loading}
+                      title={`View Starred Images (${favoritesDir})`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${
+                        darkMode
+                          ? 'bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700'
+                          : 'bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400'
+                      } text-white`}
+                    >
+                      ⭐
                     </button>
                     {allImages.length > 0 && (
                       <button
@@ -677,6 +729,7 @@
               onDelete={handleBatchDelete}
               onOpenLocation={openFileLocation}
               onNavigate={setSelectedImage}
+              onStar={handleStarImage}
             />
             {deleteMode && selectedForDeletion.size > 0 && (
               <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800/90 backdrop-blur-sm p-4 border-t border-gray-700">
