@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local Image Viewer</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+          sans-serif;
+      }
+      .app-container {
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      .app-container::-webkit-scrollbar {
+        width: 8px;
+      }
+      .app-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .app-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+      .app-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+      .waterfall-container {
+        display: flex;
+        gap: 12px;
+        padding: 16px;
+        align-items: flex-start;
+      }
+      .waterfall-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .image-card {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+        cursor: pointer;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+      }
+      .image-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      }
+      .image-card img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .placeholder-card {
+        background: linear-gradient(
+          90deg,
+          #f0f0f0 25%,
+          #e0e0e0 50%,
+          #f0f0f0 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 12px;
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #999;
+      }
+      @keyframes shimmer {
+        0% {
+          background-position: -200% 0;
+        }
+        100% {
+          background-position: 200% 0;
+        }
+      }
+      .load-more-trigger {
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useEffect, useCallback, useRef, useMemo } = React
+      const BATCH_SIZE = 20
+      const COLUMN_COUNT = 4
+
+      const formatFileSize = bytes => {
+        if (bytes === 0) return '0 Bytes'
+        const k = 1024
+        const sizes = ['Bytes', 'KB', 'MB', 'GB']
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+      }
+
+      const ImageCard = React.memo(
+        ({
+          image,
+          onImageClick,
+          onToggleSelection,
+          deleteMode,
+          darkMode,
+          isSelected
+        }) => {
+          const [imageLoaded, setImageLoaded] = useState(false)
+          const [imageError, setImageError] = useState(false)
+          const handleImageLoad = useCallback(() => setImageLoaded(true), [])
+          const handleImageError = useCallback(() => setImageError(true), [])
+          const handleClick = useCallback(() => {
+            if (deleteMode) {
+              onToggleSelection(image)
+            } else {
+              onImageClick(image)
+            }
+          }, [deleteMode, image, onToggleSelection, onImageClick])
+
+          if (imageError) {
+            return (
+              <div
+                className={`image-card ${
+                  darkMode ? 'bg-gray-800' : 'bg-gray-200'
+                }`}
+                style={{ height: '150px' }}
+              >
+                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                  <div className="text-2xl mb-2">❌</div>
+                  <div className="text-sm">Failed to load</div>
+                </div>
+              </div>
+            )
+          }
+
+          return (
+            <div
+              className={`image-card group ${
+                darkMode ? 'bg-gray-800' : 'bg-white'
+              }`}
+              onClick={handleClick}
+            >
+              {!imageLoaded && (
+                <div className="placeholder-card">
+                  <div className="text-center">
+                    <div className="text-2xl mb-2">🖼️</div>
+                    <div className="text-sm">Loading...</div>
+                  </div>
+                </div>
+              )}
+              <div
+                className={`relative transition-all duration-200 ${
+                  isSelected ? 'ring-4 ring-blue-500' : ''
+                }`}
+              >
+                <img
+                  src={image.url}
+                  alt={image.name}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  className={`transition-opacity duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0'
+                  }`}
+                />
+                {isSelected && (
+                  <div className="absolute inset-0 bg-blue-500 bg-opacity-40 flex items-center justify-center text-white text-4xl font-bold">
+                    ✓
+                  </div>
+                )}
+              </div>
+              <div className="p-2 text-left">
+                <div className="font-medium text-sm truncate">{image.name}</div>
+                <div
+                  className={`text-xs ${
+                    darkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}
+                >
+                  {formatFileSize(image.size)}
+                </div>
+              </div>
+            </div>
+          )
+        }
+      )
+
+      const WaterfallGrid = React.memo(
+        ({
+          displayedImages,
+          onImageClick,
+          onToggleSelection,
+          deleteMode,
+          darkMode,
+          isSelected,
+          loadMoreObserverRef,
+          loadingMore,
+          hasMore,
+          filteredImagesCount
+        }) => {
+          const columns = useMemo(() => {
+            const cols = Array.from({ length: COLUMN_COUNT }, () => [])
+            displayedImages.forEach((image, index) => {
+              cols[index % COLUMN_COUNT].push(image)
+            })
+            return cols
+          }, [displayedImages])
+          return (
+            <div>
+              <div className="waterfall-container">
+                {columns.map((columnImages, columnIndex) => (
+                  <div key={columnIndex} className="waterfall-column">
+                    {columnImages.map(image => (
+                      <ImageCard
+                        key={image.fullPath}
+                        image={image}
+                        onImageClick={onImageClick}
+                        onToggleSelection={onToggleSelection}
+                        deleteMode={deleteMode}
+                        darkMode={darkMode}
+                        isSelected={isSelected(image)}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+              {hasMore && (
+                <div ref={loadMoreObserverRef} className="load-more-trigger">
+                  {loadingMore ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                      <span>Loading more...</span>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">Loading more...</div>
+                  )}
+                </div>
+              )}
+              {!hasMore && displayedImages.length > 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  🎉 All {filteredImagesCount} images loaded!
+                </div>
+              )}
+            </div>
+          )
+        }
+      )
+
+      const ImageModal = React.memo(
+        ({
+          selectedImage,
+          filteredImages,
+          onClose,
+          onDelete,
+          onOpenLocation,
+          onNavigate
+        }) => {
+          if (!selectedImage) return null
+          const currentIndex = useMemo(
+            () =>
+              filteredImages.findIndex(
+                img => img.fullPath === selectedImage.fullPath
+              ),
+            [filteredImages, selectedImage]
+          )
+          const showPrevious = useCallback(() => {
+            if (currentIndex > 0) onNavigate(filteredImages[currentIndex - 1])
+          }, [currentIndex, filteredImages, onNavigate])
+          const showNext = useCallback(() => {
+            if (currentIndex < filteredImages.length - 1)
+              onNavigate(filteredImages[currentIndex + 1])
+          }, [currentIndex, filteredImages, onNavigate])
+          useEffect(() => {
+            const handleKeyPress = e => {
+              if (e.key === 'Escape') onClose()
+              else if (e.key === 'ArrowLeft') showPrevious()
+              else if (e.key === 'ArrowRight') showNext()
+            }
+            document.addEventListener('keydown', handleKeyPress)
+            return () => document.removeEventListener('keydown', handleKeyPress)
+          }, [onClose, showPrevious, showNext])
+          return (
+            <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
+              <div className="relative max-w-full max-h-full p-4">
+                <img
+                  src={selectedImage.url}
+                  alt={selectedImage.name}
+                  className="max-w-full max-h-[90vh] object-contain"
+                />
+                <button
+                  onClick={onClose}
+                  className="absolute top-4 right-4 bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all text-xl"
+                  title="Close (Esc)"
+                >
+                  ✕
+                </button>
+                <button
+                  onClick={() => onDelete([selectedImage.fullPath])}
+                  className="absolute top-4 left-4 bg-red-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
+                  title="Delete image"
+                >
+                  🗑️
+                </button>
+                <button
+                  onClick={() => onOpenLocation(selectedImage)}
+                  className="absolute top-16 left-4 bg-blue-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
+                  title="Open file location"
+                >
+                  📁
+                </button>
+                {currentIndex > 0 && (
+                  <button
+                    onClick={showPrevious}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 text-white p-3 rounded-full hover:bg-opacity-80 transition-all text-2xl"
+                    title="Previous image (←)"
+                  >
+                    ←
+                  </button>
+                )}
+                {currentIndex < filteredImages.length - 1 && (
+                  <button
+                    onClick={showNext}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 text-white p-3 rounded-full hover:bg-opacity-80 transition-all text-2xl"
+                    title="Next image (→)"
+                  >
+                    →
+                  </button>
+                )}
+                <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 text-white p-4 rounded-lg backdrop-blur-sm">
+                  <div className="font-medium text-lg mb-2">
+                    {selectedImage.name}
+                  </div>
+                  <div className="text-gray-300 mb-1">{selectedImage.path}</div>
+                  <div className="flex justify-between text-sm text-gray-400">
+                    <span>{formatFileSize(selectedImage.size)}</span>
+                    <span>
+                      Modified:{' '}
+                      {new Date(
+                        selectedImage.lastModified
+                      ).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {currentIndex + 1} of {filteredImages.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
+      )
+
+      const ImageViewerApp = () => {
+        const [selectedDir, setSelectedDir] = useState('')
+        const [allImages, setAllImages] = useState([])
+        const [displayedImages, setDisplayedImages] = useState([])
+        const [searchTerm, setSearchTerm] = useState('')
+        const [loading, setLoading] = useState(false)
+        const [loadingMore, setLoadingMore] = useState(false)
+        const [selectedImage, setSelectedImage] = useState(null)
+        const [deleteMode, setDeleteMode] = useState(false)
+        const [darkMode, setDarkMode] = useState(
+          () => localStorage.getItem('darkMode') === 'true'
+        )
+        const [selectedForDeletion, setSelectedForDeletion] = useState(
+          new Set()
+        )
+
+        const scrollContainerRef = useRef(null)
+        const loadMoreObserverRef = useRef(null)
+
+        const filteredImages = useMemo(() => {
+          if (!searchTerm) return allImages
+          return allImages.filter(
+            img =>
+              img.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              img.path.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              img.directory.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        }, [allImages, searchTerm])
+
+        const loadedCount = displayedImages.length
+        const hasMore = loadedCount < filteredImages.length
+
+        useEffect(() => {
+          localStorage.setItem('darkMode', darkMode.toString())
+        }, [darkMode])
+
+        const handleDirSelect = useCallback(async () => {
+          try {
+            setLoading(true)
+            const dirPath = await window.electronAPI.selectDirectory()
+            if (dirPath) {
+              setSearchTerm('')
+              setSelectedForDeletion(new Set())
+              setDeleteMode(false)
+              const images = await window.electronAPI.getImages(dirPath)
+              setAllImages(images)
+              // Set the selectedDir state to trigger the main reset effect
+              setSelectedDir(dirPath)
+            }
+          } catch (error) {
+            console.error('Error selecting directory:', error)
+            alert('Error selecting directory: ' + error.message)
+          } finally {
+            setLoading(false)
+          }
+        }, [])
+
+        // --- THE DEFINITIVE FIX ---
+        // This effect is the single source of truth for resetting the view.
+        // It runs ONLY when the user's context (the directory or the search term) changes.
+        // It does NOT run on deletion, which prevents the "jump to top" bug.
+        // It DOES run on new directory selection, which fixes the infinite scroll bug.
+        useEffect(() => {
+          setDisplayedImages(filteredImages.slice(0, BATCH_SIZE))
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0
+          }
+        }, [searchTerm, selectedDir]) // Note the dependency array is the key to this solution
+
+        const loadMoreImages = useCallback(() => {
+          if (loadingMore || !hasMore) return
+          setLoadingMore(true)
+          setTimeout(() => {
+            const nextBatch = filteredImages.slice(
+              loadedCount,
+              loadedCount + BATCH_SIZE
+            )
+            setDisplayedImages(prev => [...prev, ...nextBatch])
+            setLoadingMore(false)
+          }, 300)
+        }, [filteredImages, loadedCount, loadingMore, hasMore])
+
+        useEffect(() => {
+          const scrollContainer = scrollContainerRef.current
+          if (!scrollContainer || !hasMore) return
+          const observer = new IntersectionObserver(
+            entries => {
+              const [entry] = entries
+              if (entry.isIntersecting && !loadingMore) {
+                loadMoreImages()
+              }
+            },
+            { root: scrollContainer, rootMargin: '400px', threshold: 0 }
+          )
+          const observerTarget = loadMoreObserverRef.current
+          if (observerTarget) {
+            observer.observe(observerTarget)
+          }
+          return () => {
+            if (observerTarget) {
+              observer.unobserve(observerTarget)
+            }
+          }
+        }, [loadMoreImages, hasMore, loadingMore])
+
+        // This delete function remains a surgical operation. It does not trigger the reset effect.
+        const handleBatchDelete = useCallback(
+          async pathsToDelete => {
+            const numToDelete = pathsToDelete.length
+            if (numToDelete === 0) return
+            const confirmMessage = `Are you sure you want to move ${numToDelete} image(s) to the recycle bin?`
+            if (!confirm(confirmMessage)) return
+
+            try {
+              await window.electronAPI.deleteImage(pathsToDelete)
+              const deletedPathsSet = new Set(pathsToDelete)
+
+              // By updating both state arrays at once, we avoid triggering the side effect hook.
+              setAllImages(prev =>
+                prev.filter(img => !deletedPathsSet.has(img.fullPath))
+              )
+              setDisplayedImages(prev =>
+                prev.filter(img => !deletedPathsSet.has(img.fullPath))
+              )
+
+              if (selectedForDeletion.size > 0)
+                setSelectedForDeletion(new Set())
+              if (selectedImage && deletedPathsSet.has(selectedImage.fullPath))
+                setSelectedImage(null)
+            } catch (error) {
+              console.error('Error deleting image(s):', error)
+              alert('Error deleting image(s): ' + error.message)
+            }
+          },
+          [selectedImage, selectedForDeletion]
+        )
+
+        const handleToggleDeleteMode = () => {
+          setDeleteMode(prev => {
+            if (prev) {
+              setSelectedForDeletion(new Set())
+            }
+            return !prev
+          })
+        }
+        const handleToggleImageSelection = useCallback(image => {
+          setSelectedForDeletion(prevSet => {
+            const newSet = new Set(prevSet)
+            if (newSet.has(image.fullPath)) {
+              newSet.delete(image.fullPath)
+            } else {
+              newSet.add(image.fullPath)
+            }
+            return newSet
+          })
+        }, [])
+        const isSelectedForDeletion = useCallback(
+          image => selectedForDeletion.has(image.fullPath),
+          [selectedForDeletion]
+        )
+        const openFileLocation = useCallback(async image => {
+          try {
+            await window.electronAPI.openFileLocation(image.fullPath)
+          } catch (error) {
+            console.error('Error opening file location:', error)
+            alert('Error opening file location: ' + error.message)
+          }
+        }, [])
+        const handleImageClick = useCallback(
+          image => setSelectedImage(image),
+          []
+        )
+        const handleModalClose = useCallback(() => setSelectedImage(null), [])
+
+        return (
+          <div
+            ref={scrollContainerRef}
+            className={`app-container transition-colors duration-300 ${
+              darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+            }`}
+          >
+            <header
+              className={`sticky top-0 z-40 border-b backdrop-blur-sm transition-colors ${
+                darkMode
+                  ? 'bg-gray-800/90 border-gray-700'
+                  : 'bg-white/90 border-gray-200'
+              }`}
+            >
+              <div className="max-w-7xl mx-auto px-4 py-4">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    Local Image Viewer
+                  </h1>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleDirSelect}
+                      disabled={loading}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${
+                        darkMode
+                          ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white'
+                          : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white'
+                      }`}
+                    >
+                      📁{' '}
+                      {loading
+                        ? 'Scanning...'
+                        : selectedDir
+                        ? window.path.basename(selectedDir)
+                        : 'Select Directory'}
+                    </button>
+                    {allImages.length > 0 && (
+                      <button
+                        onClick={handleToggleDeleteMode}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${
+                          deleteMode
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : darkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        }`}
+                      >
+                        🗑️ {deleteMode ? 'Cancel' : 'Select to Delete'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setDarkMode(!darkMode)}
+                      className={`p-2 rounded-lg transition-all ${
+                        darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                      }`}
+                    >
+                      {darkMode ? '☀️' : '🌙'}
+                    </button>
+                  </div>
+                </div>
+                {allImages.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between gap-4">
+                    <div className="flex-1 max-w-md">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          🔍
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Search images..."
+                          value={searchTerm}
+                          onChange={e => setSearchTerm(e.target.value)}
+                          className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${
+                            darkMode
+                              ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
+                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
+                          } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-500 whitespace-nowrap">{`Showing ${displayedImages.length} of ${filteredImages.length}`}</div>
+                  </div>
+                )}
+              </div>
+            </header>
+            <main>
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
+                  <p className="text-lg font-medium">Scanning directory...</p>
+                </div>
+              ) : allImages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="text-8xl mb-6">🖼️</div>
+                  <h2 className="text-2xl font-medium mb-3">No Images Found</h2>
+                  <p className="text-gray-500 mb-8 max-w-md">
+                    Select a directory to get started.
+                  </p>
+                  <button
+                    onClick={handleDirSelect}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                  >
+                    📁 Select Directory
+                  </button>
+                </div>
+              ) : displayedImages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="text-8xl mb-6">🔍</div>
+                  <h2 className="text-2xl font-medium mb-3">
+                    No Matches Found
+                  </h2>
+                  <p className="text-gray-500">
+                    Try adjusting your search term.
+                  </p>
+                </div>
+              ) : (
+                <WaterfallGrid
+                  displayedImages={displayedImages}
+                  onImageClick={handleImageClick}
+                  onToggleSelection={handleToggleImageSelection}
+                  deleteMode={deleteMode}
+                  darkMode={darkMode}
+                  isSelected={isSelectedForDeletion}
+                  loadMoreObserverRef={loadMoreObserverRef}
+                  loadingMore={loadingMore}
+                  hasMore={hasMore}
+                  filteredImagesCount={filteredImages.length}
+                />
+              )}
+            </main>
+            <ImageModal
+              selectedImage={selectedImage}
+              filteredImages={filteredImages}
+              onClose={handleModalClose}
+              onDelete={handleBatchDelete}
+              onOpenLocation={openFileLocation}
+              onNavigate={setSelectedImage}
+            />
+            {deleteMode && selectedForDeletion.size > 0 && (
+              <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800/90 backdrop-blur-sm p-4 border-t border-gray-700">
+                <div className="max-w-7xl mx-auto flex justify-between items-center">
+                  <span className="text-white font-medium">
+                    {selectedForDeletion.size} image(s) selected
+                  </span>
+                  <button
+                    onClick={() =>
+                      handleBatchDelete(Array.from(selectedForDeletion))
+                    }
+                    className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Delete Selected
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      window.path = { basename: filepath => filepath.split(/[\\/]/).pop() }
+      ReactDOM.render(<ImageViewerApp />, document.getElementById('root'))
+    </script>
+  </body>
+</html>

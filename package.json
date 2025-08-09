@@ -1,0 +1,17 @@
+{
+  "name": "local-image-viewer",
+  "version": "1.0.0",
+  "description": "Fast local image viewer with Pinterest-style layout",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^25.9.0"
+  },
+  "dependencies": {
+    "trash": "^7.2.0",
+    "fast-glob": "^3.3.1"
+  }
+}
