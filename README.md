@@ -1,4 +1,3 @@
-
 ---
 # Local Image Viewer
 ---
@@ -74,6 +73,19 @@ You need to have [Node.js](https://nodejs.org/en/download/) (which includes `npm
 - **To run the app in a standard production-like mode:**
   ```bash
   npm start
+  ```
+
+### Packaging the Application
+
+- **To use the app in exe:**
+  ```bash
+  npm install --save-dev @electron-forge/cli
+  ```
+  ```bash
+  npx electron-forge import
+  ```
+  ```bash
+  npm run make
   ```
 
 ## ⚙️ How It Works
