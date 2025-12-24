@@ -27,14 +27,14 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist')
 const starredCache = new Map()
 let starredCacheDir = null
 
-let trash
-;(async () => {
-  try {
-    trash = (await import('trash')).default
-  } catch (err) {
-    console.error('Failed to load trash module:', err)
-  }
-})()
+async function movePathsToTrash(paths) {
+  const targets = Array.isArray(paths) ? paths : [paths]
+  await Promise.all(
+    targets.map(async target => {
+      await shell.trashItem(path.normalize(target))
+    })
+  )
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -158,10 +158,7 @@ ipcMain.handle('unstar-image', async (event, starredPath) => {
     if (!fsSync.existsSync(starredPath)) {
       throw new Error('File not found in starred folder')
     }
-    if (!trash) {
-      trash = (await import('trash')).default
-    }
-    await trash([starredPath])
+    await movePathsToTrash([starredPath])
     starredCache.set(path.basename(starredPath), false)
     return { success: true }
   } catch (error) {
@@ -242,10 +239,7 @@ ipcMain.handle('delete-image', async (event, filePaths) => {
     if (pathsToDelete.length === 0) return true
 
     const normalizedPaths = pathsToDelete.map(p => path.normalize(p))
-    if (!trash) {
-      trash = (await import('trash')).default
-    }
-    await trash(normalizedPaths)
+    await movePathsToTrash(normalizedPaths)
     return true
   } catch (error) {
     console.error('Delete error:', error)
