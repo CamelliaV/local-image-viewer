@@ -11,14 +11,21 @@ const {
   nativeImage
 } = require('electron')
 const path = require('path')
-const fs = require('fs').promises // Use promises for async operations
+const fs = require('fs').promises
 const fsSync = require('fs')
 const fastGlob = require('fast-glob')
 const { pathToFileURL, fileURLToPath } = require('url')
 
 let mainWindow
 
-app.disableHardwareAcceleration()
+// Performance optimizations
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+
+// Cache for starred status checks
+const starredCache = new Map()
+let starredCacheDir = null
 
 let trash
 ;(async () => {
@@ -95,15 +102,32 @@ ipcMain.handle('get-favorites-dir', () => {
   if (!fsSync.existsSync(favoritesPath)) {
     fsSync.mkdirSync(favoritesPath, { recursive: true })
   }
+
+  // Initialize starred cache
+  if (starredCacheDir !== favoritesPath) {
+    starredCacheDir = favoritesPath
+    starredCache.clear()
+    try {
+      const files = fsSync.readdirSync(favoritesPath)
+      files.forEach(f => starredCache.set(f, true))
+    } catch (e) {}
+  }
+
   return favoritesPath
 })
 
-// Check if an image is starred
+// Check if an image is starred (with caching)
 ipcMain.handle('is-image-starred', async (event, sourcePath) => {
+  const basename = path.basename(sourcePath)
+  if (starredCache.has(basename)) {
+    return starredCache.get(basename)
+  }
   const picturesPath = app.getPath('pictures')
   const favoritesPath = path.join(picturesPath, 'Starred Images')
-  const destinationPath = path.join(favoritesPath, path.basename(sourcePath))
-  return fsSync.existsSync(destinationPath)
+  const destinationPath = path.join(favoritesPath, basename)
+  const exists = fsSync.existsSync(destinationPath)
+  starredCache.set(basename, exists)
+  return exists
 })
 
 // Copy an image to the favorites directory or remove if already there
@@ -111,7 +135,8 @@ ipcMain.handle('star-image', async (event, sourcePath) => {
   try {
     const picturesPath = app.getPath('pictures')
     const favoritesPath = path.join(picturesPath, 'Starred Images')
-    const destinationPath = path.join(favoritesPath, path.basename(sourcePath))
+    const basename = path.basename(sourcePath)
+    const destinationPath = path.join(favoritesPath, basename)
 
     // Check if file already exists - if so, return info for toggle
     if (fsSync.existsSync(destinationPath)) {
@@ -120,7 +145,7 @@ ipcMain.handle('star-image', async (event, sourcePath) => {
 
     // Perform the copy
     await fs.copyFile(sourcePath, destinationPath)
-    console.log('Copied to stars:', destinationPath)
+    starredCache.set(basename, true)
     return { success: true, exists: false, message: 'Image copied to Starred folder.' }
   } catch (error) {
     console.error('Failed to star image:', error)
@@ -137,6 +162,7 @@ ipcMain.handle('unstar-image', async (event, starredPath) => {
       trash = (await import('trash')).default
     }
     await trash([starredPath])
+    starredCache.set(path.basename(starredPath), false)
     return { success: true }
   } catch (error) {
     console.error('Failed to unstar image:', error)
@@ -167,45 +193,43 @@ ipcMain.handle('get-images', async (event, dirPath) => {
       absolute: true,
       caseSensitiveMatch: false,
       onlyFiles: true,
-      followSymbolicLinks: false
+      followSymbolicLinks: false,
+      stats: true // Get stats in one pass
     })
 
-    const images = await Promise.all(
-      files.map(async filePath => {
-        try {
-          const normalizedFilePath = path.normalize(filePath)
-          if (!fsSync.existsSync(normalizedFilePath)) return null
+    // Process files in batches for better performance
+    const BATCH_SIZE = 100
+    const images = []
 
-          const stats = await fs.stat(normalizedFilePath)
-          const relativePath = path.relative(
-            normalizedDirPath,
-            normalizedFilePath
-          )
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE)
+      const batchResults = await Promise.all(
+        batch.map(async entry => {
+          try {
+            const filePath = entry.path
+            const stats = entry.stats
+            const relativePath = path.relative(normalizedDirPath, filePath)
+            const fileUrl = pathToFileURL(filePath).href
+            const customUrl = fileUrl.replace('file://', 'local-image://')
 
-          const fileUrl = pathToFileURL(normalizedFilePath).href
-          const customUrl = fileUrl.replace('file://', 'local-image://')
-
-          return {
-            name: path.basename(normalizedFilePath),
-            path: relativePath,
-            fullPath: normalizedFilePath,
-            size: stats.size,
-            lastModified: stats.mtime.getTime(),
-            directory:
-              path.dirname(relativePath) === '.'
-                ? 'Root'
-                : path.dirname(relativePath),
-            url: customUrl
+            return {
+              name: path.basename(filePath),
+              path: relativePath,
+              fullPath: filePath,
+              size: stats.size,
+              lastModified: stats.mtime.getTime(),
+              directory: path.dirname(relativePath) === '.' ? 'Root' : path.dirname(relativePath),
+              url: customUrl
+            }
+          } catch (error) {
+            return null
           }
-        } catch (error) {
-          console.error('Error processing file:', filePath, error)
-          return null
-        }
-      })
-    )
+        })
+      )
+      images.push(...batchResults.filter(img => img !== null))
+    }
 
-    const validImages = images.filter(img => img !== null)
-    return validImages.sort((a, b) => a.name.localeCompare(b.name))
+    return images.sort((a, b) => a.name.localeCompare(b.name))
   } catch (error) {
     console.error('Get images error:', error)
     throw new Error(`Failed to scan directory: ${error.message}`)
