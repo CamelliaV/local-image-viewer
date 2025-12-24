@@ -6,7 +6,9 @@ const {
   ipcMain,
   dialog,
   shell,
-  protocol
+  protocol,
+  clipboard,
+  nativeImage
 } = require('electron')
 const path = require('path')
 const fs = require('fs').promises // Use promises for async operations
@@ -96,29 +98,49 @@ ipcMain.handle('get-favorites-dir', () => {
   return favoritesPath
 })
 
-// Copy an image to the favorites directory
+// Check if an image is starred
+ipcMain.handle('is-image-starred', async (event, sourcePath) => {
+  const picturesPath = app.getPath('pictures')
+  const favoritesPath = path.join(picturesPath, 'Starred Images')
+  const destinationPath = path.join(favoritesPath, path.basename(sourcePath))
+  return fsSync.existsSync(destinationPath)
+})
+
+// Copy an image to the favorites directory or remove if already there
 ipcMain.handle('star-image', async (event, sourcePath) => {
   try {
     const picturesPath = app.getPath('pictures')
     const favoritesPath = path.join(picturesPath, 'Starred Images')
     const destinationPath = path.join(favoritesPath, path.basename(sourcePath))
 
-    // Check if file already exists to avoid errors
+    // Check if file already exists - if so, return info for toggle
     if (fsSync.existsSync(destinationPath)) {
-      console.log('Image already starred:', destinationPath)
-      return {
-        success: true,
-        message: 'Image already exists in Starred folder.'
-      }
+      return { success: true, exists: true, starredPath: destinationPath }
     }
 
     // Perform the copy
     await fs.copyFile(sourcePath, destinationPath)
     console.log('Copied to stars:', destinationPath)
-    return { success: true, message: 'Image copied to Starred folder.' }
+    return { success: true, exists: false, message: 'Image copied to Starred folder.' }
   } catch (error) {
     console.error('Failed to star image:', error)
     throw new Error(`Could not copy file: ${error.message}`)
+  }
+})
+
+ipcMain.handle('unstar-image', async (event, starredPath) => {
+  try {
+    if (!fsSync.existsSync(starredPath)) {
+      throw new Error('File not found in starred folder')
+    }
+    if (!trash) {
+      trash = (await import('trash')).default
+    }
+    await trash([starredPath])
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to unstar image:', error)
+    throw new Error(`Could not remove from starred: ${error.message}`)
   }
 })
 
@@ -139,7 +161,7 @@ ipcMain.handle('get-images', async (event, dirPath) => {
     if (!fsSync.existsSync(normalizedDirPath)) {
       throw new Error('Directory does not exist')
     }
-    const imageExtensions = ['**/*.{jpg,jpeg,png,gif,bmp,webp,svg,tiff,tif}']
+    const imageExtensions = ['**/*.{jpg,jpeg,png,gif,bmp,webp,svg,tiff,tif,avif,heic,heif,ico}']
     const files = await fastGlob(imageExtensions, {
       cwd: normalizedDirPath,
       absolute: true,
@@ -223,5 +245,48 @@ ipcMain.handle('open-file-location', async (event, filePath) => {
       return true
     }
     throw new Error(`Failed to open file location: ${error.message}`)
+  }
+})
+
+ipcMain.handle('save-edited-image', async (event, { originalPath, dataUrl, suffix }) => {
+  try {
+    const dir = path.dirname(originalPath)
+    const ext = path.extname(originalPath)
+    const base = path.basename(originalPath, ext)
+    const newPath = path.join(dir, `${base}_${suffix}${ext}`)
+
+    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '')
+    await fs.writeFile(newPath, Buffer.from(base64Data, 'base64'))
+    return { success: true, path: newPath }
+  } catch (error) {
+    console.error('Save edited image error:', error)
+    throw new Error(`Failed to save image: ${error.message}`)
+  }
+})
+
+ipcMain.handle('copy-image-to-clipboard', async (event, filePath) => {
+  try {
+    const image = nativeImage.createFromPath(filePath)
+    clipboard.writeImage(image)
+    return { success: true }
+  } catch (error) {
+    console.error('Copy to clipboard error:', error)
+    throw new Error(`Failed to copy: ${error.message}`)
+  }
+})
+
+ipcMain.handle('rename-image', async (event, { oldPath, newName }) => {
+  try {
+    const dir = path.dirname(oldPath)
+    const newPath = path.join(dir, newName)
+    if (fsSync.existsSync(newPath)) {
+      throw new Error('A file with that name already exists')
+    }
+    // Copy instead of rename to preserve original
+    await fs.copyFile(oldPath, newPath)
+    return { success: true, newPath }
+  } catch (error) {
+    console.error('Rename (copy) error:', error)
+    throw new Error(`Failed to copy with new name: ${error.message}`)
   }
 })

@@ -38,9 +38,11 @@
         gap: 12px;
         padding: 16px;
         align-items: flex-start;
+        overflow-x: auto;
       }
       .waterfall-column {
-        flex: 1;
+        flex: 1 0 180px;
+        min-width: 180px;
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -62,6 +64,8 @@
       .image-card img {
         width: 100%;
         height: auto;
+        max-height: 400px;
+        object-fit: cover;
         display: block;
       }
       .placeholder-card {
@@ -104,6 +108,28 @@
       const BATCH_SIZE = 20
       const COLUMN_COUNT = 4
 
+      const DEFAULT_KEYBINDINGS = {
+        prevImage: 'ArrowLeft',
+        nextImage: 'ArrowRight',
+        zoomIn: '+',
+        zoomOut: '-',
+        resetZoom: '0',
+        toggleSlideshow: ' ',
+        closeModal: 'Escape'
+      }
+
+      const KEYBINDING_LABELS = {
+        prevImage: 'Previous Image',
+        nextImage: 'Next Image',
+        zoomIn: 'Zoom In',
+        zoomOut: 'Zoom Out',
+        resetZoom: 'Reset Zoom',
+        toggleSlideshow: 'Toggle Slideshow',
+        closeModal: 'Close Modal'
+      }
+
+      const formatKey = key => key === ' ' ? 'Space' : key
+
       const formatFileSize = bytes => {
         if (bytes === 0) return '0 Bytes'
         const k = 1024
@@ -117,12 +143,17 @@
           image,
           onImageClick,
           onToggleSelection,
+          onStar,
           deleteMode,
           darkMode,
-          isSelected
+          isSelected,
+          showStarButton,
+          onContextMenu,
+          starVersion
         }) => {
           const [imageLoaded, setImageLoaded] = useState(false)
           const [imageError, setImageError] = useState(false)
+          const [isStarred, setIsStarred] = useState(false)
           const handleImageLoad = useCallback(() => setImageLoaded(true), [])
           const handleImageError = useCallback(() => setImageError(true), [])
           const handleClick = useCallback(() => {
@@ -132,6 +163,17 @@
               onImageClick(image)
             }
           }, [deleteMode, image, onToggleSelection, onImageClick])
+
+          useEffect(() => {
+            window.electronAPI.isImageStarred(image.fullPath).then(setIsStarred)
+          }, [image.fullPath, starVersion])
+
+          const handleStar = useCallback(async e => {
+            e.stopPropagation()
+            await onStar(image)
+            const starred = await window.electronAPI.isImageStarred(image.fullPath)
+            setIsStarred(starred)
+          }, [image, onStar])
 
           if (imageError) {
             return (
@@ -149,12 +191,18 @@
             )
           }
 
+          const handleContextMenuEvent = useCallback(e => {
+            e.preventDefault()
+            onContextMenu(e, image)
+          }, [image, onContextMenu])
+
           return (
             <div
               className={`image-card group ${
                 darkMode ? 'bg-gray-800' : 'bg-white'
               }`}
               onClick={handleClick}
+              onContextMenu={handleContextMenuEvent}
             >
               {!imageLoaded && (
                 <div className="placeholder-card">
@@ -183,6 +231,15 @@
                     ✓
                   </div>
                 )}
+                {showStarButton && !deleteMode && (
+                  <button
+                    onClick={handleStar}
+                    className={`absolute top-2 right-2 bg-black bg-opacity-50 p-1.5 rounded-full transition-opacity hover:bg-opacity-70 ${isStarred ? 'opacity-100 text-yellow-400' : 'opacity-0 group-hover:opacity-100 text-gray-400'}`}
+                    title={isStarred ? 'Unstar image' : 'Star image'}
+                  >
+                    {isStarred ? '⭐' : '☆'}
+                  </button>
+                )}
               </div>
               <div className="p-2 text-left">
                 <div className="font-medium text-sm truncate">{image.name}</div>
@@ -204,21 +261,26 @@
           displayedImages,
           onImageClick,
           onToggleSelection,
+          onStar,
           deleteMode,
           darkMode,
           isSelected,
           loadMoreObserverRef,
           loadingMore,
           hasMore,
-          filteredImagesCount
+          filteredImagesCount,
+          columnCount,
+          showStarButton,
+          onContextMenu,
+          starVersion
         }) => {
           const columns = useMemo(() => {
-            const cols = Array.from({ length: COLUMN_COUNT }, () => [])
+            const cols = Array.from({ length: columnCount }, () => [])
             displayedImages.forEach((image, index) => {
-              cols[index % COLUMN_COUNT].push(image)
+              cols[index % columnCount].push(image)
             })
             return cols
-          }, [displayedImages])
+          }, [displayedImages, columnCount])
           return (
             <div>
               <div className="waterfall-container">
@@ -230,9 +292,13 @@
                         image={image}
                         onImageClick={onImageClick}
                         onToggleSelection={onToggleSelection}
+                        onStar={onStar}
                         deleteMode={deleteMode}
                         darkMode={darkMode}
                         isSelected={isSelected(image)}
+                        showStarButton={showStarButton}
+                        onContextMenu={onContextMenu}
+                        starVersion={starVersion}
                       />
                     ))}
                   </div>
@@ -268,16 +334,63 @@
           onDelete,
           onOpenLocation,
           onNavigate,
-          onStar
+          onStar,
+          keybindings,
+          clickOutsideToClose,
+          showActionFeedback,
+          maxImageSize
         }) => {
-          if (!selectedImage) return null
+          const [zoom, setZoom] = useState(1)
+          const [position, setPosition] = useState({ x: 0, y: 0 })
+          const [isDragging, setIsDragging] = useState(false)
+          const [dragMode, setDragMode] = useState(false)
+          const dragStartRef = useRef({ x: 0, y: 0 })
+          const positionRef = useRef({ x: 0, y: 0 })
+          const zoomRef = useRef(1)
+          const [dimensions, setDimensions] = useState(null)
+          const [slideshow, setSlideshow] = useState(false)
+          const [editMode, setEditMode] = useState(null) // 'crop' | 'resize' | null
+          const [cropArea, setCropArea] = useState(null)
+          const [resizeW, setResizeW] = useState('')
+          const [resizeH, setResizeH] = useState('')
+          const [contextMenu, setContextMenu] = useState(null)
+          const imageRef = useRef(null)
+          const canvasRef = useRef(null)
+
+          useEffect(() => {
+            setZoom(1)
+            zoomRef.current = 1
+            setPosition({ x: 0, y: 0 })
+            positionRef.current = { x: 0, y: 0 }
+            setDimensions(null)
+            setEditMode(null)
+            setDragMode(false)
+            setCropArea(null)
+            setContextMenu(null)
+          }, [selectedImage?.fullPath])
+
           const currentIndex = useMemo(
             () =>
-              filteredImages.findIndex(
-                img => img.fullPath === selectedImage.fullPath
-              ),
+              selectedImage
+                ? filteredImages.findIndex(
+                    img => img.fullPath === selectedImage.fullPath
+                  )
+                : -1,
             [filteredImages, selectedImage]
           )
+
+          useEffect(() => {
+            if (!slideshow || !selectedImage) return
+            const timer = setInterval(() => {
+              if (currentIndex < filteredImages.length - 1) {
+                onNavigate(filteredImages[currentIndex + 1])
+              } else {
+                onNavigate(filteredImages[0])
+              }
+            }, 3000)
+            return () => clearInterval(timer)
+          }, [slideshow, selectedImage, filteredImages, onNavigate, currentIndex])
+
           const showPrevious = useCallback(() => {
             if (currentIndex > 0) onNavigate(filteredImages[currentIndex - 1])
           }, [currentIndex, filteredImages, onNavigate])
@@ -285,24 +398,212 @@
             if (currentIndex < filteredImages.length - 1)
               onNavigate(filteredImages[currentIndex + 1])
           }, [currentIndex, filteredImages, onNavigate])
+
+          const handleWheel = useCallback(e => {
+            e.preventDefault()
+            const delta = e.deltaY > 0 ? 0.9 : 1.1
+            setZoom(z => {
+              const newZoom = Math.min(Math.max(z * delta, 0.5), 5)
+              zoomRef.current = newZoom
+              return newZoom
+            })
+          }, [])
+
+          const handleMouseDown = useCallback(e => {
+            // Only allow drag when in drag mode and zoomed
+            if (dragMode && zoomRef.current > 1 && !editMode) {
+              e.preventDefault()
+              e.stopPropagation()
+              setIsDragging(true)
+              dragStartRef.current = { x: e.clientX - positionRef.current.x, y: e.clientY - positionRef.current.y }
+            }
+          }, [editMode, dragMode])
+
+          const handleMouseMove = useCallback(e => {
+            if (isDragging) {
+              const newPos = { x: e.clientX - dragStartRef.current.x, y: e.clientY - dragStartRef.current.y }
+              positionRef.current = newPos
+              setPosition(newPos)
+            }
+          }, [isDragging])
+
+          const handleMouseUp = useCallback(() => {
+            setIsDragging(false)
+          }, [])
+
+          const handleContextMenu = useCallback(e => {
+            e.preventDefault()
+            setContextMenu({ x: e.clientX, y: e.clientY })
+          }, [])
+
+          const closeContextMenu = useCallback(() => setContextMenu(null), [])
+
+          const handleCropStart = useCallback(e => {
+            if (editMode !== 'crop' || !imageRef.current) return
+            const rect = imageRef.current.getBoundingClientRect()
+            const x = e.clientX - rect.left
+            const y = e.clientY - rect.top
+            setCropArea({ x, y, w: 0, h: 0, startX: x, startY: y })
+          }, [editMode])
+
+          const handleCropMove = useCallback(e => {
+            if (!cropArea?.startX || !imageRef.current) return
+            const rect = imageRef.current.getBoundingClientRect()
+            const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+            const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height))
+            setCropArea(prev => ({
+              ...prev,
+              x: Math.min(prev.startX, x),
+              y: Math.min(prev.startY, y),
+              w: Math.abs(x - prev.startX),
+              h: Math.abs(y - prev.startY)
+            }))
+          }, [cropArea])
+
+          const handleCropEnd = useCallback(() => {
+            if (cropArea) setCropArea(prev => ({ ...prev, startX: null, startY: null }))
+          }, [cropArea])
+
+          const saveCrop = useCallback(async () => {
+            if (!cropArea || !dimensions || !imageRef.current) return
+            const rect = imageRef.current.getBoundingClientRect()
+            const scaleX = dimensions.w / rect.width
+            const scaleY = dimensions.h / rect.height
+            const canvas = document.createElement('canvas')
+            canvas.width = cropArea.w * scaleX
+            canvas.height = cropArea.h * scaleY
+            const ctx = canvas.getContext('2d')
+            const img = new Image()
+            img.crossOrigin = 'anonymous'
+            img.onload = async () => {
+              ctx.drawImage(img, cropArea.x * scaleX, cropArea.y * scaleY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height)
+              const dataUrl = canvas.toDataURL('image/png')
+              try {
+                await window.electronAPI.saveEditedImage(selectedImage.fullPath, dataUrl, 'cropped')
+                alert('Cropped image saved!')
+                setEditMode(null)
+                setCropArea(null)
+              } catch (err) { alert('Error: ' + err.message) }
+            }
+            img.src = selectedImage.url.replace('local-image://', 'file://')
+          }, [cropArea, dimensions, selectedImage])
+
+          const saveResize = useCallback(async () => {
+            if (!resizeW || !resizeH || !dimensions) return
+            const canvas = document.createElement('canvas')
+            canvas.width = parseInt(resizeW)
+            canvas.height = parseInt(resizeH)
+            const ctx = canvas.getContext('2d')
+            const img = new Image()
+            img.crossOrigin = 'anonymous'
+            img.onload = async () => {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+              const dataUrl = canvas.toDataURL('image/png')
+              try {
+                await window.electronAPI.saveEditedImage(selectedImage.fullPath, dataUrl, `${canvas.width}x${canvas.height}`)
+                alert('Resized image saved!')
+                setEditMode(null)
+              } catch (err) { alert('Error: ' + err.message) }
+            }
+            img.src = selectedImage.url.replace('local-image://', 'file://')
+          }, [resizeW, resizeH, dimensions, selectedImage])
+
           useEffect(() => {
+            if (!selectedImage) return
             const handleKeyPress = e => {
-              if (e.key === 'Escape') onClose()
-              else if (e.key === 'ArrowLeft') showPrevious()
-              else if (e.key === 'ArrowRight') showNext()
+              const key = e.key
+              if (key === keybindings.closeModal) onClose()
+              else if (key === keybindings.prevImage) showPrevious()
+              else if (key === keybindings.nextImage) showNext()
+              else if (key === keybindings.zoomIn || key === '=') setZoom(z => { const nz = Math.min(z * 1.2, 5); zoomRef.current = nz; return nz })
+              else if (key === keybindings.zoomOut) setZoom(z => { const nz = Math.max(z / 1.2, 0.5); zoomRef.current = nz; return nz })
+              else if (key === keybindings.resetZoom) { setZoom(1); zoomRef.current = 1; setPosition({ x: 0, y: 0 }); positionRef.current = { x: 0, y: 0 }; setDragMode(false) }
+              else if (key === 'd' || key === 'D') { if (zoomRef.current > 1) setDragMode(d => !d) }
+              else if (key === keybindings.toggleSlideshow) { e.preventDefault(); setSlideshow(s => !s) }
             }
             document.addEventListener('keydown', handleKeyPress)
             return () => document.removeEventListener('keydown', handleKeyPress)
-          }, [onClose, showPrevious, showNext])
+          }, [onClose, showPrevious, showNext, selectedImage, keybindings])
+
+          if (!selectedImage) return null
+
+          const handleBackdropClick = e => {
+            if (contextMenu) {
+              setContextMenu(null)
+              return
+            }
+            if (clickOutsideToClose && e.target === e.currentTarget && zoomRef.current <= 1) {
+              onClose()
+            }
+          }
 
           return (
-            <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
-              <div className="relative max-w-full max-h-full p-4">
-                <img
-                  src={selectedImage.url}
-                  alt={selectedImage.name}
-                  className="max-w-full max-h-[90vh] object-contain"
-                />
+            <div
+              className="fixed inset-0 backdrop-blur-md bg-black/70 flex items-center justify-center z-50"
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onMouseDown={handleMouseDown}
+              onClick={handleBackdropClick}
+            >
+              <div className="relative w-full h-full flex items-center justify-center p-4" onClick={handleBackdropClick}>
+                <div className="relative" onMouseDown={editMode === 'crop' ? handleCropStart : undefined} onMouseMove={editMode === 'crop' ? handleCropMove : undefined} onMouseUp={editMode === 'crop' ? handleCropEnd : undefined} onMouseLeave={editMode === 'crop' ? handleCropEnd : undefined} onClick={e => e.stopPropagation()}>
+                  <img
+                    ref={imageRef}
+                    src={selectedImage.url}
+                    alt={selectedImage.name}
+                    className="object-contain select-none"
+                    style={{
+                      maxWidth: `${maxImageSize}vw`,
+                      maxHeight: `${maxImageSize - 5}vh`,
+                      transform: editMode ? 'none' : `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                      cursor: editMode === 'crop' ? 'crosshair' : (dragMode && zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'),
+                      transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+                    }}
+                    onWheel={editMode ? undefined : handleWheel}
+                    onMouseDown={editMode ? undefined : handleMouseDown}
+                    onLoad={e => setDimensions({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
+                    draggable={false}
+                    onContextMenu={handleContextMenu}
+                  />
+                  {editMode === 'crop' && cropArea && (
+                    <div
+                      className="absolute border-2 border-dashed border-white bg-white bg-opacity-20 pointer-events-none"
+                      style={{ left: cropArea.x, top: cropArea.y, width: cropArea.w, height: cropArea.h }}
+                    />
+                  )}
+                </div>
+
+                {contextMenu && (
+                  <div
+                    className="fixed backdrop-blur-xl bg-black/60 border border-white/20 rounded-xl shadow-2xl py-2 z-[60] min-w-[180px]"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                    onClick={closeContextMenu}
+                  >
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onDelete([selectedImage.fullPath])}>Delete</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onOpenLocation(selectedImage)}>Open Location</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={async () => { await window.electronAPI.copyImageToClipboard(selectedImage.fullPath); if (showActionFeedback) alert('Copied!') }}>Copy to Clipboard</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onStar(selectedImage)}>Star / Unstar</button>
+                    <div className="border-t border-white/20 my-1"></div>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => setSlideshow(s => !s)}>{slideshow ? 'Stop Slideshow' : 'Start Slideshow'}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setEditMode('crop'); setCropArea(null) }}>Crop</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setEditMode('resize'); if (dimensions) { setResizeW(String(dimensions.w)); setResizeH(String(dimensions.h)) } }}>Resize</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => {
+                      const newName = prompt('Enter new filename:', selectedImage.name)
+                      if (newName && newName !== selectedImage.name) {
+                        window.electronAPI.renameImage(selectedImage.fullPath, newName).then(() => { if (showActionFeedback) alert('Copied with new name!') }).catch(err => alert('Error: ' + err.message))
+                      }
+                    }}>Save As...</button>
+                    <div className="border-t border-white/20 my-1"></div>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(z => { const nz = Math.min(z * 1.2, 5); zoomRef.current = nz; return nz }) }}>Zoom In</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(z => { const nz = Math.max(z / 1.2, 0.5); zoomRef.current = nz; return nz }) }}>Zoom Out</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(1); zoomRef.current = 1; setPosition({ x: 0, y: 0 }); positionRef.current = { x: 0, y: 0 }; setDragMode(false) }}>Reset Zoom</button>
+                    <button className={`w-full px-4 py-2 text-left text-sm transition-colors ${dragMode ? 'text-cyan-400 bg-white/5' : 'text-white'} hover:bg-white/10 ${zoom <= 1 ? 'opacity-50' : ''}`} onClick={() => zoom > 1 && setDragMode(d => !d)}>{dragMode ? '✓ Drag Mode ON' : 'Enable Drag Mode'}</button>
+                    <div className="border-t border-white/20 my-1"></div>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={onClose}>Close</button>
+                  </div>
+                )}
+
                 <button
                   onClick={onClose}
                   className="absolute top-4 right-4 bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all text-xl"
@@ -325,12 +626,117 @@
                   📁
                 </button>
                 <button
+                  onClick={async () => {
+                    try {
+                      await window.electronAPI.copyImageToClipboard(selectedImage.fullPath)
+                      if (showActionFeedback) alert('Image copied to clipboard!')
+                    } catch (err) { alert('Error: ' + err.message) }
+                  }}
+                  className="absolute top-16 left-16 bg-indigo-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
+                  title="Copy to clipboard"
+                >
+                  📋
+                </button>
+                <button
                   onClick={() => onStar(selectedImage)}
                   className="absolute top-28 left-4 bg-yellow-400 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all text-lg"
                   title="Copy to Starred folder"
                 >
                   ⭐
                 </button>
+                <button
+                  onClick={() => setSlideshow(s => !s)}
+                  className={`absolute top-40 left-4 ${slideshow ? 'bg-green-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all`}
+                  title="Slideshow (Space)"
+                >
+                  {slideshow ? '⏸️' : '▶️'}
+                </button>
+                <button
+                  onClick={() => setDragMode(d => !d)}
+                  disabled={zoom <= 1}
+                  className={`absolute top-40 left-16 ${dragMode ? 'bg-cyan-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all disabled:opacity-40`}
+                  title={dragMode ? 'Drag Mode ON (click to disable)' : 'Enable Drag Mode (zoom first)'}
+                >
+                  ✋
+                </button>
+                <button
+                  onClick={() => { setEditMode(editMode === 'crop' ? null : 'crop'); setCropArea(null) }}
+                  className={`absolute top-52 left-4 ${editMode === 'crop' ? 'bg-purple-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all`}
+                  title="Crop"
+                >
+                  ✂️
+                </button>
+                <button
+                  onClick={() => { setEditMode(editMode === 'resize' ? null : 'resize'); if (dimensions) { setResizeW(String(dimensions.w)); setResizeH(String(dimensions.h)) } }}
+                  className={`absolute top-64 left-4 ${editMode === 'resize' ? 'bg-purple-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all`}
+                  title="Resize"
+                >
+                  📐
+                </button>
+                <button
+                  onClick={() => {
+                    const newName = prompt('Enter new filename:', selectedImage.name)
+                    if (newName && newName !== selectedImage.name) {
+                      window.electronAPI.renameImage(selectedImage.fullPath, newName)
+                        .then(result => {
+                          alert('File renamed successfully!')
+                          onClose()
+                        })
+                        .catch(err => alert('Error: ' + err.message))
+                    }
+                  }}
+                  className="absolute top-[19rem] left-4 bg-gray-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
+                  title="Rename"
+                >
+                  ✏️
+                </button>
+
+                {editMode === 'crop' && cropArea && cropArea.w > 10 && cropArea.h > 10 && (
+                  <button
+                    onClick={saveCrop}
+                    className="absolute top-52 left-16 bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                  >
+                    Save Crop
+                  </button>
+                )}
+
+                {editMode === 'resize' && (
+                  <div className="absolute top-64 left-16 bg-black bg-opacity-80 p-2 rounded flex items-center gap-2">
+                    <input type="number" value={resizeW} onChange={e => setResizeW(e.target.value)} className="w-16 px-1 rounded text-black" placeholder="W" />
+                    <span className="text-white">×</span>
+                    <input type="number" value={resizeH} onChange={e => setResizeH(e.target.value)} className="w-16 px-1 rounded text-black" placeholder="H" />
+                    <button onClick={saveResize} className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Save</button>
+                  </div>
+                )}
+
+                <div className="absolute bottom-24 right-4 flex flex-col gap-2">
+                  <button
+                    onClick={() => setZoom(z => { const nz = Math.min(z * 1.2, 5); zoomRef.current = nz; return nz })}
+                    className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all"
+                    title="Zoom in (+)"
+                  >
+                    🔍+
+                  </button>
+                  <button
+                    onClick={() => setZoom(z => { const nz = Math.max(z / 1.2, 0.5); zoomRef.current = nz; return nz })}
+                    className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all"
+                    title="Zoom out (-)"
+                  >
+                    🔍-
+                  </button>
+                  <button
+                    onClick={() => { setZoom(1); zoomRef.current = 1; setPosition({ x: 0, y: 0 }); positionRef.current = { x: 0, y: 0 }; setDragMode(false) }}
+                    className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all text-sm"
+                    title="Reset zoom (0)"
+                  >
+                    1:1
+                  </button>
+                  {zoom !== 1 && (
+                    <div className="bg-black bg-opacity-60 text-white px-2 py-1 rounded text-xs text-center">
+                      {Math.round(zoom * 100)}%
+                    </div>
+                  )}
+                </div>
 
                 {currentIndex > 0 && (
                   <button
@@ -355,8 +761,9 @@
                     {selectedImage.name}
                   </div>
                   <div className="text-gray-300 mb-1">{selectedImage.path}</div>
-                  <div className="flex justify-between text-sm text-gray-400">
+                  <div className="flex justify-between text-sm text-gray-400 flex-wrap gap-2">
                     <span>{formatFileSize(selectedImage.size)}</span>
+                    {dimensions && <span>{dimensions.w} × {dimensions.h}</span>}
                     <span>
                       Modified:{' '}
                       {new Date(
@@ -374,35 +781,122 @@
         }
       )
 
+      const createNewTab = (id = Date.now()) => ({
+        id,
+        selectedDir: '',
+        allImages: [],
+        displayedImages: [],
+        searchTerm: '',
+        dirHistory: [],
+        historyIndex: -1
+      })
+
       const ImageViewerApp = () => {
-        const [selectedDir, setSelectedDir] = useState('')
-        const [allImages, setAllImages] = useState([])
-        const [displayedImages, setDisplayedImages] = useState([])
-        const [searchTerm, setSearchTerm] = useState('')
+        const [tabs, setTabs] = useState(() => {
+          const saved = localStorage.getItem('tabs')
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed.map(t => ({ ...createNewTab(), ...t, allImages: [], displayedImages: [] }))
+              }
+            } catch (e) {}
+          }
+          return [createNewTab(1)]
+        })
+        const [activeTabId, setActiveTabId] = useState(() => {
+          const saved = localStorage.getItem('activeTabId')
+          return saved ? parseInt(saved) : 1
+        })
+
+        const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0]
+        const activeTabIndex = tabs.findIndex(t => t.id === activeTabId)
+
+        const updateActiveTab = useCallback((updates) => {
+          setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, ...updates } : t))
+        }, [activeTabId])
+
         const [loading, setLoading] = useState(false)
         const [loadingMore, setLoadingMore] = useState(false)
         const [selectedImage, setSelectedImage] = useState(null)
         const [deleteMode, setDeleteMode] = useState(false)
         const [darkMode, setDarkMode] = useState(
-          () => localStorage.getItem('darkMode') === 'true'
+          () => localStorage.getItem('darkMode') !== 'false'
+        )
+        const [sortBy, setSortBy] = useState(
+          () => localStorage.getItem('sortBy') || 'name'
+        )
+        const [sortOrder, setSortOrder] = useState(
+          () => localStorage.getItem('sortOrder') || 'asc'
+        )
+        const [columnCount, setColumnCount] = useState(
+          () => parseInt(localStorage.getItem('columnCount')) || 4
         )
         const [selectedForDeletion, setSelectedForDeletion] = useState(
           new Set()
         )
         const [favoritesDir, setFavoritesDir] = useState('')
+        const [isDragOver, setIsDragOver] = useState(false)
+        const [showHelp, setShowHelp] = useState(false)
+        const [showStarButton, setShowStarButton] = useState(
+          () => localStorage.getItem('showStarButton') !== 'false'
+        )
+        const [keybindings, setKeybindings] = useState(() => {
+          const saved = localStorage.getItem('keybindings')
+          return saved ? { ...DEFAULT_KEYBINDINGS, ...JSON.parse(saved) } : DEFAULT_KEYBINDINGS
+        })
+        const [showSettings, setShowSettings] = useState(false)
+        const [editingKey, setEditingKey] = useState(null)
+        const [clickOutsideToClose, setClickOutsideToClose] = useState(
+          () => localStorage.getItem('clickOutsideToClose') !== 'false'
+        )
+        const [confirmPrompts, setConfirmPrompts] = useState(
+          () => localStorage.getItem('confirmPrompts') === 'true'
+        )
+        const [showActionFeedback, setShowActionFeedback] = useState(
+          () => localStorage.getItem('showActionFeedback') === 'true'
+        )
+        const [maxImageSize, setMaxImageSize] = useState(
+          () => parseInt(localStorage.getItem('maxImageSize')) || 90
+        )
+        const [showHistoryPanel, setShowHistoryPanel] = useState(false)
+        const [mainContextMenu, setMainContextMenu] = useState(null)
+        const [starVersion, setStarVersion] = useState(0)
+        const [recentDirs, setRecentDirs] = useState(() => {
+          const saved = localStorage.getItem('recentDirs')
+          return saved ? JSON.parse(saved) : []
+        })
+
+        // Derived values from active tab
+        const selectedDir = activeTab.selectedDir
+        const allImages = activeTab.allImages
+        const displayedImages = activeTab.displayedImages
+        const searchTerm = activeTab.searchTerm
+        const dirHistory = activeTab.dirHistory
+        const historyIndex = activeTab.historyIndex
 
         const scrollContainerRef = useRef(null)
         const loadMoreObserverRef = useRef(null)
 
         const filteredImages = useMemo(() => {
-          if (!searchTerm) return allImages
-          return allImages.filter(
-            img =>
-              img.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              img.path.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              img.directory.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        }, [allImages, searchTerm])
+          let imgs = allImages
+          if (searchTerm) {
+            imgs = imgs.filter(
+              img =>
+                img.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                img.path.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                img.directory.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+          }
+          const sorted = [...imgs].sort((a, b) => {
+            let cmp = 0
+            if (sortBy === 'name') cmp = a.name.localeCompare(b.name)
+            else if (sortBy === 'date') cmp = b.lastModified - a.lastModified
+            else if (sortBy === 'size') cmp = b.size - a.size
+            return sortOrder === 'asc' ? cmp : -cmp
+          })
+          return sorted
+        }, [allImages, searchTerm, sortBy, sortOrder])
 
         const loadedCount = displayedImages.length
         const hasMore = loadedCount < filteredImages.length
@@ -412,6 +906,62 @@
         }, [darkMode])
 
         useEffect(() => {
+          localStorage.setItem('sortBy', sortBy)
+        }, [sortBy])
+
+        useEffect(() => {
+          localStorage.setItem('sortOrder', sortOrder)
+        }, [sortOrder])
+
+        useEffect(() => {
+          localStorage.setItem('columnCount', columnCount.toString())
+        }, [columnCount])
+
+        useEffect(() => {
+          localStorage.setItem('showStarButton', showStarButton.toString())
+        }, [showStarButton])
+
+        useEffect(() => {
+          localStorage.setItem('keybindings', JSON.stringify(keybindings))
+        }, [keybindings])
+
+        useEffect(() => {
+          localStorage.setItem('clickOutsideToClose', clickOutsideToClose.toString())
+        }, [clickOutsideToClose])
+
+        useEffect(() => {
+          localStorage.setItem('confirmPrompts', confirmPrompts.toString())
+        }, [confirmPrompts])
+
+        useEffect(() => {
+          localStorage.setItem('showActionFeedback', showActionFeedback.toString())
+        }, [showActionFeedback])
+
+        useEffect(() => {
+          localStorage.setItem('maxImageSize', maxImageSize.toString())
+        }, [maxImageSize])
+
+        useEffect(() => {
+          localStorage.setItem('recentDirs', JSON.stringify(recentDirs))
+        }, [recentDirs])
+
+        useEffect(() => {
+          // Save tabs (without images to avoid huge localStorage)
+          const tabsToSave = tabs.map(t => ({
+            id: t.id,
+            selectedDir: t.selectedDir,
+            searchTerm: t.searchTerm,
+            dirHistory: t.dirHistory,
+            historyIndex: t.historyIndex
+          }))
+          localStorage.setItem('tabs', JSON.stringify(tabsToSave))
+        }, [tabs])
+
+        useEffect(() => {
+          localStorage.setItem('activeTabId', activeTabId.toString())
+        }, [activeTabId])
+
+        useEffect(() => {
           const fetchFavoritesDir = async () => {
             const dir = await window.electronAPI.getFavoritesDir()
             setFavoritesDir(dir)
@@ -419,32 +969,85 @@
           fetchFavoritesDir()
         }, [])
 
-        const handleDirSelect = useCallback(async () => {
+        // Reload images when switching tabs if the tab has a directory but no images
+        useEffect(() => {
+          if (activeTab.selectedDir && activeTab.allImages.length === 0) {
+            loadDir(activeTab.selectedDir, false)
+          }
+        }, [activeTabId])
+
+        const loadDir = useCallback(async (dirPath, addToHistory = true) => {
+          if (!dirPath) return
           try {
             setLoading(true)
-            const dirPath = await window.electronAPI.selectDirectory()
-            if (dirPath) {
-              setSearchTerm('')
-              setSelectedForDeletion(new Set())
-              setDeleteMode(false)
-              const images = await window.electronAPI.getImages(dirPath)
-              setAllImages(images)
-              setSelectedDir(dirPath)
+            setSelectedForDeletion(new Set())
+            setDeleteMode(false)
+            const images = await window.electronAPI.getImages(dirPath)
+            if (addToHistory) {
+              updateActiveTab({
+                selectedDir: dirPath,
+                allImages: images,
+                searchTerm: '',
+                dirHistory: [...dirHistory.slice(0, historyIndex + 1), dirPath],
+                historyIndex: historyIndex + 1
+              })
+              // Add to persistent recent dirs (keep last 20, no duplicates)
+              setRecentDirs(prev => {
+                const filtered = prev.filter(d => d !== dirPath)
+                return [dirPath, ...filtered].slice(0, 20)
+              })
+            } else {
+              updateActiveTab({
+                selectedDir: dirPath,
+                allImages: images,
+                searchTerm: ''
+              })
             }
           } catch (error) {
-            console.error('Error selecting directory:', error)
-            alert('Error selecting directory: ' + error.message)
+            console.error('Error loading directory:', error)
+            alert('Error loading directory: ' + error.message)
           } finally {
             setLoading(false)
           }
-        }, [])
+        }, [historyIndex, dirHistory, updateActiveTab])
+
+        const handleDirSelect = useCallback(async () => {
+          const dirPath = await window.electronAPI.selectDirectory()
+          if (dirPath) loadDir(dirPath)
+        }, [loadDir])
+
+        const goBack = useCallback(() => {
+          if (historyIndex > 0) {
+            const newIndex = historyIndex - 1
+            updateActiveTab({ historyIndex: newIndex })
+            loadDir(dirHistory[newIndex], false)
+          }
+        }, [historyIndex, dirHistory, loadDir, updateActiveTab])
+
+        const goForward = useCallback(() => {
+          if (historyIndex < dirHistory.length - 1) {
+            const newIndex = historyIndex + 1
+            updateActiveTab({ historyIndex: newIndex })
+            loadDir(dirHistory[newIndex], false)
+          }
+        }, [historyIndex, dirHistory, loadDir, updateActiveTab])
 
         useEffect(() => {
-          setDisplayedImages(filteredImages.slice(0, BATCH_SIZE))
+          const handleMouseButton = e => {
+            if (selectedImage) return
+            if (e.button === 3) { e.preventDefault(); goBack() }
+            else if (e.button === 4) { e.preventDefault(); goForward() }
+          }
+          window.addEventListener('mouseup', handleMouseButton)
+          return () => window.removeEventListener('mouseup', handleMouseButton)
+        }, [goBack, goForward, selectedImage])
+
+        useEffect(() => {
+          setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, displayedImages: filteredImages.slice(0, BATCH_SIZE) } : t))
           if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollTop = 0
           }
-        }, [searchTerm, selectedDir])
+        }, [filteredImages, activeTabId])
 
         const loadMoreImages = useCallback(() => {
           if (loadingMore || !hasMore) return
@@ -454,10 +1057,10 @@
               loadedCount,
               loadedCount + BATCH_SIZE
             )
-            setDisplayedImages(prev => [...prev, ...nextBatch])
+            setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, displayedImages: [...t.displayedImages, ...nextBatch] } : t))
             setLoadingMore(false)
           }, 300)
-        }, [filteredImages, loadedCount, loadingMore, hasMore])
+        }, [filteredImages, loadedCount, loadingMore, hasMore, activeTabId])
 
         useEffect(() => {
           const scrollContainer = scrollContainerRef.current
@@ -480,25 +1083,25 @@
               observer.unobserve(observerTarget)
             }
           }
-        }, [loadMoreImages, hasMore, loadingMore])
+        }, [loadMoreImages, hasMore, loadingMore, selectedDir, displayedImages.length])
 
         const handleBatchDelete = useCallback(
           async pathsToDelete => {
             const numToDelete = pathsToDelete.length
             if (numToDelete === 0) return
-            const confirmMessage = `Are you sure you want to move ${numToDelete} image(s) to the recycle bin?`
-            if (!confirm(confirmMessage)) return
+            if (confirmPrompts) {
+              const confirmMessage = `Are you sure you want to move ${numToDelete} image(s) to the recycle bin?`
+              if (!confirm(confirmMessage)) return
+            }
 
             try {
               await window.electronAPI.deleteImage(pathsToDelete)
               const deletedPathsSet = new Set(pathsToDelete)
 
-              setAllImages(prev =>
-                prev.filter(img => !deletedPathsSet.has(img.fullPath))
-              )
-              setDisplayedImages(prev =>
-                prev.filter(img => !deletedPathsSet.has(img.fullPath))
-              )
+              updateActiveTab({
+                allImages: allImages.filter(img => !deletedPathsSet.has(img.fullPath)),
+                displayedImages: displayedImages.filter(img => !deletedPathsSet.has(img.fullPath))
+              })
 
               if (selectedForDeletion.size > 0)
                 setSelectedForDeletion(new Set())
@@ -509,37 +1112,28 @@
               alert('Error deleting image(s): ' + error.message)
             }
           },
-          [selectedImage, selectedForDeletion]
+          [selectedImage, selectedForDeletion, confirmPrompts, allImages, displayedImages, updateActiveTab]
         )
 
         const handleStarImage = useCallback(async image => {
           try {
             const result = await window.electronAPI.starImage(image.fullPath)
-            // We can use a more subtle notification system in the future
-            alert(result.message)
+            if (result.exists) {
+              if (!confirmPrompts || confirm('Image already starred. Remove from starred folder?')) {
+                await window.electronAPI.unstarImage(result.starredPath)
+              }
+            }
+            setStarVersion(v => v + 1)
           } catch (error) {
             console.error('Failed to star image:', error)
             alert(`Error: ${error.message}`)
           }
-        }, [])
+        }, [confirmPrompts])
 
         const viewFavorites = useCallback(async () => {
           if (!favoritesDir || loading) return
-          try {
-            setLoading(true)
-            setSearchTerm('')
-            setSelectedForDeletion(new Set())
-            setDeleteMode(false)
-            const images = await window.electronAPI.getImages(favoritesDir)
-            setAllImages(images)
-            setSelectedDir(favoritesDir)
-          } catch (error) {
-            console.error('Failed to load favorites:', error)
-            alert(`Error loading favorites: ${error.message}`)
-          } finally {
-            setLoading(false)
-          }
-        }, [favoritesDir, loading])
+          loadDir(favoritesDir)
+        }, [favoritesDir, loading, loadDir])
 
         const handleToggleDeleteMode = () => {
           setDeleteMode(prev => {
@@ -578,12 +1172,47 @@
         )
         const handleModalClose = useCallback(() => setSelectedImage(null), [])
 
+        const handleMainContextMenu = useCallback((e, image) => {
+          setMainContextMenu({ x: e.clientX, y: e.clientY, image })
+        }, [])
+
+        const closeMainContextMenu = useCallback(() => setMainContextMenu(null), [])
+
+        const handleDrop = useCallback(async e => {
+          e.preventDefault()
+          setIsDragOver(false)
+          const items = e.dataTransfer.items
+          for (const item of items) {
+            if (item.kind === 'file') {
+              const entry = item.webkitGetAsEntry?.()
+              if (entry?.isDirectory) {
+                const dirPath = e.dataTransfer.files[0]?.path
+                if (dirPath) loadDir(dirPath)
+                break
+              }
+            }
+          }
+        }, [loadDir])
+
+        const handleDragOver = useCallback(e => {
+          e.preventDefault()
+          setIsDragOver(true)
+        }, [])
+
+        const handleDragLeave = useCallback(e => {
+          e.preventDefault()
+          setIsDragOver(false)
+        }, [])
+
         return (
           <div
             ref={scrollContainerRef}
             className={`app-container transition-colors duration-300 ${
               darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
-            }`}
+            } ${isDragOver ? 'ring-4 ring-inset ring-blue-500' : ''}`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
           >
             <header
               className={`sticky top-0 z-40 border-b backdrop-blur-sm transition-colors ${
@@ -592,12 +1221,95 @@
                   : 'bg-white/90 border-gray-200'
               }`}
             >
+              {/* Tab Bar */}
+              <div className={`flex items-center gap-1 px-2 pt-2 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                {tabs.map(tab => (
+                  <div
+                    key={tab.id}
+                    className={`group flex items-center gap-1 px-3 py-1.5 rounded-t-lg cursor-pointer transition-colors ${
+                      tab.id === activeTabId
+                        ? darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+                        : darkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    }`}
+                    onClick={() => setActiveTabId(tab.id)}
+                  >
+                    <span className="text-sm truncate max-w-[120px]">
+                      {tab.selectedDir ? tab.selectedDir.split(/[\\/]/).pop() : 'New Tab'}
+                    </span>
+                    {tabs.length > 1 && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          const newTabs = tabs.filter(t => t.id !== tab.id)
+                          setTabs(newTabs)
+                          if (tab.id === activeTabId) {
+                            setActiveTabId(newTabs[0].id)
+                          }
+                        }}
+                        className="opacity-0 group-hover:opacity-100 ml-1 text-gray-500 hover:text-red-500 transition-opacity"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newTab = createNewTab()
+                    setTabs(prev => [...prev, newTab])
+                    setActiveTabId(newTab.id)
+                  }}
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-600'
+                  }`}
+                  title="New Tab"
+                >
+                  +
+                </button>
+              </div>
               <div className="max-w-7xl mx-auto px-4 py-4">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     Local Image Viewer
                   </h1>
                   <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={goBack}
+                      disabled={historyIndex <= 0}
+                      className={`p-2 rounded-lg transition-all ${
+                        darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600'
+                          : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
+                      }`}
+                      title="Back (Mouse Back)"
+                    >
+                      ◀
+                    </button>
+                    <button
+                      onClick={goForward}
+                      disabled={historyIndex >= dirHistory.length - 1}
+                      className={`p-2 rounded-lg transition-all ${
+                        darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600'
+                          : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
+                      }`}
+                      title="Forward (Mouse Forward)"
+                    >
+                      ▶
+                    </button>
+                    <button
+                      onClick={() => setShowHistoryPanel(v => !v)}
+                      className={`p-2 rounded-lg transition-all ${
+                        showHistoryPanel
+                          ? 'bg-blue-500 text-white'
+                          : darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600'
+                          : 'bg-gray-200 hover:bg-gray-300'
+                      }`}
+                      title="History & Recent"
+                    >
+                      📜
+                    </button>
                     <button
                       onClick={handleDirSelect}
                       disabled={loading}
@@ -650,10 +1362,32 @@
                     >
                       {darkMode ? '☀️' : '🌙'}
                     </button>
+                    <button
+                      onClick={() => setShowHelp(true)}
+                      className={`p-2 rounded-lg transition-all ${
+                        darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                      }`}
+                      title="Keyboard shortcuts"
+                    >
+                      ❓
+                    </button>
+                    <button
+                      onClick={() => setShowSettings(true)}
+                      className={`p-2 rounded-lg transition-all ${
+                        darkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                      }`}
+                      title="Settings"
+                    >
+                      ⚙️
+                    </button>
                   </div>
                 </div>
                 {allImages.length > 0 && (
-                  <div className="mt-4 flex items-center justify-between gap-4">
+                  <div className="mt-4 flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex-1 max-w-md">
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
@@ -663,7 +1397,7 @@
                           type="text"
                           placeholder="Search images..."
                           value={searchTerm}
-                          onChange={e => setSearchTerm(e.target.value)}
+                          onChange={e => updateActiveTab({ searchTerm: e.target.value })}
                           className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${
                             darkMode
                               ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
@@ -672,11 +1406,154 @@
                         />
                       </div>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`flex items-center rounded-lg border overflow-hidden ${
+                        darkMode ? 'border-gray-600' : 'border-gray-300'
+                      }`}>
+                        <select
+                          value={sortBy}
+                          onChange={e => setSortBy(e.target.value)}
+                          className={`px-3 py-2 border-none transition-colors ${
+                            darkMode
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-white text-gray-900'
+                          }`}
+                        >
+                          <option value="name">Name</option>
+                          <option value="date">Date</option>
+                          <option value="size">Size</option>
+                        </select>
+                        <button
+                          onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                          className={`px-3 py-2 border-l transition-colors ${
+                            darkMode
+                              ? 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'
+                              : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
+                          }`}
+                          title={`Currently: ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
+                        >
+                          {sortBy === 'name'
+                            ? (sortOrder === 'asc' ? 'A→Z' : 'Z→A')
+                            : sortBy === 'date'
+                            ? (sortOrder === 'asc' ? '🕐↓' : '🕐↑')
+                            : (sortOrder === 'asc' ? 'L→S' : 'S→L')}
+                        </button>
+                      </div>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
+                        darkMode ? 'border-gray-600' : 'border-gray-300'
+                      }`}>
+                        <button
+                          onClick={() => setColumnCount(c => Math.max(2, c - 1))}
+                          className={`px-2 py-1 rounded ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
+                          disabled={columnCount <= 2}
+                        >-</button>
+                        <span className="px-2 text-sm">{columnCount} cols</span>
+                        <button
+                          onClick={() => setColumnCount(c => Math.min(8, c + 1))}
+                          className={`px-2 py-1 rounded ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
+                          disabled={columnCount >= 8}
+                        >+</button>
+                      </div>
+                      <button
+                        onClick={() => setShowStarButton(s => !s)}
+                        className={`px-2 py-2 rounded-lg border transition-colors ${
+                          showStarButton
+                            ? 'bg-yellow-500 border-yellow-500 text-white'
+                            : darkMode ? 'bg-gray-700 border-gray-600 text-gray-400' : 'bg-white border-gray-300 text-gray-400'
+                        }`}
+                        title={showStarButton ? 'Hide quick star' : 'Show quick star'}
+                      >
+                        ⭐
+                      </button>
+                    </div>
                     <div className="text-sm text-gray-500 whitespace-nowrap">{`Showing ${displayedImages.length} of ${filteredImages.length}`}</div>
                   </div>
                 )}
               </div>
             </header>
+            {showHistoryPanel && (
+              <div className="fixed inset-0 z-50" onClick={() => setShowHistoryPanel(false)}>
+                <div
+                  className={`absolute top-20 left-4 right-4 max-w-2xl mx-auto backdrop-blur-xl rounded-xl shadow-2xl border ${
+                    darkMode ? 'bg-gray-900/90 border-gray-700' : 'bg-white/90 border-gray-200'
+                  }`}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-lg font-semibold">Navigation</span>
+                      <button
+                        onClick={() => setShowHistoryPanel(false)}
+                        className="text-gray-500 hover:text-gray-700 p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {dirHistory.length > 0 && (
+                      <div className="mb-4">
+                        <div className="text-sm font-medium text-gray-500 mb-2">Session History ({dirHistory.length})</div>
+                        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                          {dirHistory.map((dir, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                updateActiveTab({ historyIndex: idx })
+                                loadDir(dir, false)
+                                setShowHistoryPanel(false)
+                              }}
+                              className={`px-3 py-1 rounded text-sm truncate max-w-xs transition-colors ${
+                                idx === historyIndex
+                                  ? 'bg-blue-500 text-white'
+                                  : darkMode
+                                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                              }`}
+                              title={dir}
+                            >
+                              {dir.split(/[\\/]/).pop() || dir}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {recentDirs.length > 0 && (
+                      <div>
+                        <div className="text-sm font-medium text-gray-500 mb-2">Recently Accessed</div>
+                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                          {recentDirs.map((dir, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                loadDir(dir)
+                                setShowHistoryPanel(false)
+                              }}
+                              className={`px-3 py-1 rounded text-sm truncate max-w-xs transition-colors ${
+                                dir === selectedDir
+                                  ? 'bg-green-500 text-white'
+                                  : darkMode
+                                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                              }`}
+                              title={dir}
+                            >
+                              {dir.split(/[\\/]/).pop() || dir}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {dirHistory.length === 0 && recentDirs.length === 0 && (
+                      <div className="text-center text-gray-500 py-4">
+                        No history yet. Open some directories to see them here.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             <main>
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20">
@@ -712,6 +1589,7 @@
                   displayedImages={displayedImages}
                   onImageClick={handleImageClick}
                   onToggleSelection={handleToggleImageSelection}
+                  onStar={handleStarImage}
                   deleteMode={deleteMode}
                   darkMode={darkMode}
                   isSelected={isSelectedForDeletion}
@@ -719,6 +1597,10 @@
                   loadingMore={loadingMore}
                   hasMore={hasMore}
                   filteredImagesCount={filteredImages.length}
+                  columnCount={columnCount}
+                  showStarButton={showStarButton}
+                  onContextMenu={handleMainContextMenu}
+                  starVersion={starVersion}
                 />
               )}
             </main>
@@ -730,6 +1612,10 @@
               onOpenLocation={openFileLocation}
               onNavigate={setSelectedImage}
               onStar={handleStarImage}
+              keybindings={keybindings}
+              clickOutsideToClose={clickOutsideToClose}
+              showActionFeedback={showActionFeedback}
+              maxImageSize={maxImageSize}
             />
             {deleteMode && selectedForDeletion.size > 0 && (
               <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800/90 backdrop-blur-sm p-4 border-t border-gray-700">
@@ -745,6 +1631,135 @@
                   >
                     Delete Selected
                   </button>
+                </div>
+              </div>
+            )}
+            {mainContextMenu && (
+              <div
+                className="fixed inset-0 z-50"
+                onClick={closeMainContextMenu}
+              >
+                <div
+                  className="fixed backdrop-blur-xl bg-black/60 border border-white/20 rounded-xl shadow-2xl py-2 z-[60] min-w-[180px]"
+                  style={{ left: mainContextMenu.x, top: mainContextMenu.y }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setSelectedImage(mainContextMenu.image); closeMainContextMenu() }}>View Image</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { openFileLocation(mainContextMenu.image); closeMainContextMenu() }}>Open Location</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={async () => { await window.electronAPI.copyImageToClipboard(mainContextMenu.image.fullPath); if (showActionFeedback) alert('Copied!'); closeMainContextMenu() }}>Copy to Clipboard</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { handleStarImage(mainContextMenu.image); closeMainContextMenu() }}>Star / Unstar</button>
+                  <div className="border-t border-white/20 my-1"></div>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { handleBatchDelete([mainContextMenu.image.fullPath]); closeMainContextMenu() }}>Delete</button>
+                </div>
+              </div>
+            )}
+            {showHelp && (
+              <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => setShowHelp(false)}>
+                <div className={`p-6 rounded-xl max-w-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} onClick={e => e.stopPropagation()}>
+                  <h2 className="text-xl font-bold mb-4">Keyboard Shortcuts</h2>
+                  <div className="space-y-2 text-sm">
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.prevImage)}</kbd> <kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.nextImage)}</kbd> Navigate images</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.zoomIn)}</kbd> <kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.zoomOut)}</kbd> Zoom in/out</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.resetZoom)}</kbd> Reset zoom</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleSlideshow)}</kbd> Toggle slideshow</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.closeModal)}</kbd> Close modal</p>
+                  </div>
+                  <h3 className="text-lg font-bold mt-4 mb-2">Features</h3>
+                  <ul className="text-sm space-y-1 list-disc list-inside">
+                    <li>Drag & drop folders to load</li>
+                    <li>Scroll wheel to zoom in modal</li>
+                    <li>Drag image when zoomed</li>
+                    <li>Batch select & delete</li>
+                    <li>Star images to favorites</li>
+                    <li>Mouse back/forward for history</li>
+                  </ul>
+                  <button onClick={() => setShowHelp(false)} className="mt-4 w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Close</button>
+                </div>
+              </div>
+            )}
+            {showSettings && (
+              <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => { setShowSettings(false); setEditingKey(null) }}>
+                <div className={`p-6 rounded-xl max-w-lg w-full mx-4 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} onClick={e => e.stopPropagation()}>
+                  <h2 className="text-xl font-bold mb-4">Settings</h2>
+
+                  <h3 className="text-lg font-semibold mb-3">Behavior</h3>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-600">
+                    <span>Click outside to close viewer</span>
+                    <button
+                      onClick={() => setClickOutsideToClose(v => !v)}
+                      className={`px-3 py-1 rounded ${clickOutsideToClose ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                    >
+                      {clickOutsideToClose ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-600">
+                    <span>Confirmation prompts</span>
+                    <button
+                      onClick={() => setConfirmPrompts(v => !v)}
+                      className={`px-3 py-1 rounded ${confirmPrompts ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                    >
+                      {confirmPrompts ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-600">
+                    <span>Show action feedback (alerts)</span>
+                    <button
+                      onClick={() => setShowActionFeedback(v => !v)}
+                      className={`px-3 py-1 rounded ${showActionFeedback ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                    >
+                      {showActionFeedback ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between py-2 mb-4 border-b border-gray-600">
+                    <span>Max image size (vw)</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="50"
+                        max="100"
+                        value={maxImageSize}
+                        onChange={e => setMaxImageSize(parseInt(e.target.value))}
+                        className="w-24"
+                      />
+                      <span className="w-10 text-right">{maxImageSize}%</span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg font-semibold mb-3">Keybindings</h3>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {Object.keys(keybindings).map(action => (
+                      <div key={action} className="flex items-center justify-between py-2 border-b border-gray-600">
+                        <span>{KEYBINDING_LABELS[action]}</span>
+                        <button
+                          onClick={() => setEditingKey(action)}
+                          className={`px-3 py-1 rounded ${editingKey === action ? 'bg-blue-500 text-white animate-pulse' : 'bg-gray-600 text-white'}`}
+                          onKeyDown={e => {
+                            if (editingKey === action) {
+                              e.preventDefault()
+                              setKeybindings(prev => ({ ...prev, [action]: e.key }))
+                              setEditingKey(null)
+                            }
+                          }}
+                        >
+                          {editingKey === action ? 'Press key...' : formatKey(keybindings[action])}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => { setKeybindings(DEFAULT_KEYBINDINGS); setEditingKey(null) }}
+                      className="flex-1 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500"
+                    >
+                      Reset to Default
+                    </button>
+                    <button
+                      onClick={() => { setShowSettings(false); setEditingKey(null) }}
+                      className="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
