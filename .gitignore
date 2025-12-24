@@ -1,3 +1,5 @@
 node_modules/
 imgs/avif.py
 out/
+pkg/
+*.pkg.tar.zst

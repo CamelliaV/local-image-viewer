@@ -6,19 +6,18 @@ pkgdesc="Fast local image viewer with Pinterest-style layout"
 arch=('x86_64')
 url="https://github.com/camelliav/local-image-viewer"
 license=('MIT')
-depends=('electron' 'gtk3' 'nss' 'libxss' 'libxtst' 'xdg-utils' 'libnotify' 'libappindicator-gtk3' 'trash-cli')
+depends=('gtk3' 'nss' 'libxss' 'libxtst' 'xdg-utils' 'libnotify' 'libappindicator-gtk3' 'trash-cli')
 makedepends=('npm' 'nodejs')
-source=("$pkgname-$pkgver.tar.gz")
-sha256sums=('SKIP')
+options=('!strip')
 
 build() {
-    cd "$srcdir/$pkgname-$pkgver"
+    cd "$startdir"
     npm install
-    npm run make -- --platform=linux --arch=x64
+    npm run package -- --platform=linux --arch=x64
 }
 
 package() {
-    cd "$srcdir/$pkgname-$pkgver"
+    cd "$startdir"
 
     # Install the app
     install -dm755 "$pkgdir/opt/$pkgname"

@@ -11,6 +11,14 @@ module.exports = {
     appCategoryType: 'public.app-category.graphics-design',
     // Linux-specific
     extraResource: ['./assets'],
+    // Ignore makepkg directories and other build artifacts
+    ignore: [
+      /^\/pkg$/,
+      /^\/src$/,
+      /^\/PKGBUILD$/,
+      /^\/\.SRCINFO$/,
+      /^\/.*\.pkg\.tar\..*/,
+    ],
   },
   rebuildConfig: {},
   makers: [
