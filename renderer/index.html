@@ -180,6 +180,130 @@
         'ja': '日本語'
       }
 
+      // Stylish theme definitions
+      const THEMES = {
+        midnight: {
+          name: 'Midnight',
+          bg: 'bg-gray-950',
+          bgSecondary: 'bg-gray-900',
+          text: 'text-gray-100',
+          textSecondary: 'text-gray-400',
+          border: 'border-gray-800',
+          card: 'bg-gray-900',
+          accent: 'bg-violet-600 hover:bg-violet-700',
+          accentText: 'text-violet-400',
+          header: 'bg-gray-900/95',
+          input: 'bg-gray-800 border-gray-700 text-white placeholder-gray-500',
+          button: 'bg-gray-800 hover:bg-gray-700',
+          gradient: 'from-violet-600 to-fuchsia-600'
+        },
+        sakura: {
+          name: 'Sakura',
+          bg: 'bg-pink-50',
+          bgSecondary: 'bg-white',
+          text: 'text-gray-800',
+          textSecondary: 'text-pink-600',
+          border: 'border-pink-200',
+          card: 'bg-white',
+          accent: 'bg-pink-500 hover:bg-pink-600',
+          accentText: 'text-pink-500',
+          header: 'bg-white/95',
+          input: 'bg-white border-pink-300 text-gray-800 placeholder-pink-400',
+          button: 'bg-pink-100 hover:bg-pink-200',
+          gradient: 'from-pink-500 to-rose-500'
+        },
+        ocean: {
+          name: 'Ocean',
+          bg: 'bg-slate-900',
+          bgSecondary: 'bg-slate-800',
+          text: 'text-cyan-50',
+          textSecondary: 'text-cyan-400',
+          border: 'border-slate-700',
+          card: 'bg-slate-800',
+          accent: 'bg-cyan-500 hover:bg-cyan-600',
+          accentText: 'text-cyan-400',
+          header: 'bg-slate-800/95',
+          input: 'bg-slate-700 border-slate-600 text-white placeholder-slate-400',
+          button: 'bg-slate-700 hover:bg-slate-600',
+          gradient: 'from-cyan-500 to-blue-600'
+        },
+        forest: {
+          name: 'Forest',
+          bg: 'bg-emerald-950',
+          bgSecondary: 'bg-emerald-900',
+          text: 'text-emerald-50',
+          textSecondary: 'text-emerald-400',
+          border: 'border-emerald-800',
+          card: 'bg-emerald-900',
+          accent: 'bg-emerald-500 hover:bg-emerald-600',
+          accentText: 'text-emerald-400',
+          header: 'bg-emerald-900/95',
+          input: 'bg-emerald-800 border-emerald-700 text-white placeholder-emerald-500',
+          button: 'bg-emerald-800 hover:bg-emerald-700',
+          gradient: 'from-emerald-500 to-teal-500'
+        },
+        sunset: {
+          name: 'Sunset',
+          bg: 'bg-orange-50',
+          bgSecondary: 'bg-white',
+          text: 'text-gray-800',
+          textSecondary: 'text-orange-600',
+          border: 'border-orange-200',
+          card: 'bg-white',
+          accent: 'bg-orange-500 hover:bg-orange-600',
+          accentText: 'text-orange-500',
+          header: 'bg-white/95',
+          input: 'bg-white border-orange-300 text-gray-800 placeholder-orange-400',
+          button: 'bg-orange-100 hover:bg-orange-200',
+          gradient: 'from-orange-500 to-amber-500'
+        },
+        neon: {
+          name: 'Neon',
+          bg: 'bg-black',
+          bgSecondary: 'bg-zinc-900',
+          text: 'text-white',
+          textSecondary: 'text-fuchsia-400',
+          border: 'border-fuchsia-900',
+          card: 'bg-zinc-900',
+          accent: 'bg-fuchsia-600 hover:bg-fuchsia-500',
+          accentText: 'text-fuchsia-400',
+          header: 'bg-zinc-900/95',
+          input: 'bg-zinc-800 border-fuchsia-800 text-white placeholder-zinc-500',
+          button: 'bg-zinc-800 hover:bg-zinc-700',
+          gradient: 'from-fuchsia-500 to-cyan-400'
+        },
+        lavender: {
+          name: 'Lavender',
+          bg: 'bg-purple-50',
+          bgSecondary: 'bg-white',
+          text: 'text-gray-800',
+          textSecondary: 'text-purple-600',
+          border: 'border-purple-200',
+          card: 'bg-white',
+          accent: 'bg-purple-500 hover:bg-purple-600',
+          accentText: 'text-purple-500',
+          header: 'bg-white/95',
+          input: 'bg-white border-purple-300 text-gray-800 placeholder-purple-400',
+          button: 'bg-purple-100 hover:bg-purple-200',
+          gradient: 'from-purple-500 to-indigo-500'
+        },
+        noir: {
+          name: 'Noir',
+          bg: 'bg-neutral-950',
+          bgSecondary: 'bg-neutral-900',
+          text: 'text-neutral-100',
+          textSecondary: 'text-neutral-400',
+          border: 'border-neutral-800',
+          card: 'bg-neutral-900',
+          accent: 'bg-neutral-700 hover:bg-neutral-600',
+          accentText: 'text-neutral-300',
+          header: 'bg-neutral-900/95',
+          input: 'bg-neutral-800 border-neutral-700 text-white placeholder-neutral-500',
+          button: 'bg-neutral-800 hover:bg-neutral-700',
+          gradient: 'from-neutral-600 to-neutral-400'
+        }
+      }
+
       const DEFAULT_KEYBINDINGS = {
         // Image viewer navigation
         prevImage: 'ArrowLeft',
@@ -254,7 +378,7 @@
           onToggleSelection,
           onStar,
           deleteMode,
-          darkMode,
+          theme,
           isSelected,
           showStarButton,
           onContextMenu,
@@ -288,12 +412,10 @@
           if (imageError) {
             return (
               <div
-                className={`image-card ${
-                  darkMode ? 'bg-gray-800' : 'bg-gray-200'
-                }`}
+                className={`image-card ${theme.card}`}
                 style={{ height: '150px' }}
               >
-                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                <div className={`h-full flex flex-col items-center justify-center ${theme.textSecondary}`}>
                   <div className="text-2xl mb-2">❌</div>
                   <div className="text-sm">{t('app.failedToLoad')}</div>
                 </div>
@@ -308,9 +430,7 @@
 
           return (
             <div
-              className={`image-card group ${
-                darkMode ? 'bg-gray-800' : 'bg-white'
-              }`}
+              className={`image-card group ${theme.card}`}
               onClick={handleClick}
               onContextMenu={handleContextMenuEvent}
             >
@@ -353,11 +473,7 @@
               </div>
               <div className="p-2 text-left">
                 <div className="font-medium text-sm truncate">{image.name}</div>
-                <div
-                  className={`text-xs ${
-                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}
-                >
+                <div className={`text-xs ${theme.textSecondary}`}>
                   {formatFileSize(image.size)}
                 </div>
               </div>
@@ -373,7 +489,7 @@
           onToggleSelection,
           onStar,
           deleteMode,
-          darkMode,
+          theme,
           isSelected,
           loadMoreObserverRef,
           loadingMore,
@@ -405,7 +521,7 @@
                         onToggleSelection={onToggleSelection}
                         onStar={onStar}
                         deleteMode={deleteMode}
-                        darkMode={darkMode}
+                        theme={theme}
                         isSelected={isSelected(image)}
                         showStarButton={showStarButton}
                         onContextMenu={onContextMenu}
@@ -419,16 +535,16 @@
                 <div ref={loadMoreObserverRef} className="load-more-trigger">
                   {loadingMore ? (
                     <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                      <div className={`animate-spin rounded-full h-6 w-6 border-b-2 ${theme.accentText.replace('text-', 'border-')}`}></div>
                       <span>{t('images.loadingMore')}</span>
                     </div>
                   ) : (
-                    <div className="text-gray-500">{t('images.loadingMore')}</div>
+                    <div className={theme.textSecondary}>{t('images.loadingMore')}</div>
                   )}
                 </div>
               )}
               {!hasMore && displayedImages.length > 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className={`text-center py-8 ${theme.textSecondary}`}>
                   🎉 {t('images.allImagesLoaded', { count: filteredImagesCount })}
                 </div>
               )}
@@ -943,9 +1059,10 @@
         const [loadingMore, setLoadingMore] = useState(false)
         const [selectedImage, setSelectedImage] = useState(null)
         const [deleteMode, setDeleteMode] = useState(false)
-        const [darkMode, setDarkMode] = useState(
-          () => localStorage.getItem('darkMode') !== 'false'
+        const [theme, setTheme] = useState(
+          () => localStorage.getItem('theme') || 'midnight'
         )
+        const currentTheme = THEMES[theme] || THEMES.midnight
         const [sortBy, setSortBy] = useState(
           () => localStorage.getItem('sortBy') || 'name'
         )
@@ -1025,8 +1142,8 @@
         const hasMore = loadedCount < filteredImages.length
 
         useEffect(() => {
-          localStorage.setItem('darkMode', darkMode.toString())
-        }, [darkMode])
+          localStorage.setItem('theme', theme)
+        }, [theme])
 
         useEffect(() => {
           localStorage.setItem('sortBy', sortBy)
@@ -1379,29 +1496,23 @@
         return (
           <div
             ref={scrollContainerRef}
-            className={`app-container transition-colors duration-300 ${
-              darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
-            } ${isDragOver ? 'ring-4 ring-inset ring-blue-500' : ''}`}
+            className={`app-container transition-colors duration-300 ${currentTheme.bg} ${currentTheme.text} ${isDragOver ? 'ring-4 ring-inset ring-blue-500' : ''}`}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
           >
             <header
-              className={`sticky top-0 z-40 border-b backdrop-blur-sm transition-colors ${
-                darkMode
-                  ? 'bg-gray-800/90 border-gray-700'
-                  : 'bg-white/90 border-gray-200'
-              }`}
+              className={`sticky top-0 z-40 border-b backdrop-blur-sm transition-colors ${currentTheme.header} ${currentTheme.border}`}
             >
               {/* Tab Bar */}
-              <div className={`flex items-center gap-1 px-2 pt-2 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className={`flex items-center gap-1 px-2 pt-2 border-b ${currentTheme.border}`}>
                 {tabs.map(tab => (
                   <div
                     key={tab.id}
                     className={`group flex items-center gap-1 px-3 py-1.5 rounded-t-lg cursor-pointer transition-colors ${
                       tab.id === activeTabId
-                        ? darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
-                        : darkMode ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        ? `${currentTheme.bg} ${currentTheme.text}`
+                        : `${currentTheme.button} ${currentTheme.textSecondary}`
                     }`}
                     onClick={() => setActiveTabId(tab.id)}
                   >
@@ -1431,9 +1542,7 @@
                     setTabs(prev => [...prev, newTab])
                     setActiveTabId(newTab.id)
                   }}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-600'
-                  }`}
+                  className={`p-1.5 rounded-lg transition-colors ${currentTheme.button} ${currentTheme.textSecondary}`}
                   title={t('navigation.newTab')}
                 >
                   +
@@ -1441,18 +1550,14 @@
               </div>
               <div className="max-w-7xl mx-auto px-4 py-4">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <h1 className={`text-2xl font-bold bg-gradient-to-r ${currentTheme.gradient} bg-clip-text text-transparent`}>
                     {t('app.title')}
                   </h1>
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       onClick={goBack}
                       disabled={historyIndex <= 0}
-                      className={`p-2 rounded-lg transition-all ${
-                        darkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600'
-                          : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
-                      }`}
+                      className={`p-2 rounded-lg transition-all ${currentTheme.button} disabled:opacity-40`}
                       title={t('navigation.back')}
                     >
                       ◀
@@ -1460,24 +1565,14 @@
                     <button
                       onClick={goForward}
                       disabled={historyIndex >= dirHistory.length - 1}
-                      className={`p-2 rounded-lg transition-all ${
-                        darkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600'
-                          : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
-                      }`}
+                      className={`p-2 rounded-lg transition-all ${currentTheme.button} disabled:opacity-40`}
                       title={t('navigation.forward')}
                     >
                       ▶
                     </button>
                     <button
                       onClick={() => setShowHistoryPanel(v => !v)}
-                      className={`p-2 rounded-lg transition-all ${
-                        showHistoryPanel
-                          ? 'bg-blue-500 text-white'
-                          : darkMode
-                          ? 'bg-gray-700 hover:bg-gray-600'
-                          : 'bg-gray-200 hover:bg-gray-300'
-                      }`}
+                      className={`p-2 rounded-lg transition-all ${showHistoryPanel ? currentTheme.accent + ' text-white' : currentTheme.button}`}
                       title={t('navigation.historyAndRecent')}
                     >
                       📜
@@ -1485,11 +1580,7 @@
                     <button
                       onClick={handleDirSelect}
                       disabled={loading}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${
-                        darkMode
-                          ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white'
-                          : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white'
-                      }`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${currentTheme.accent} text-white disabled:opacity-40`}
                     >
                       📁{' '}
                       {loading
@@ -1502,11 +1593,7 @@
                       onClick={viewFavorites}
                       disabled={!favoritesDir || loading}
                       title={t('star.viewStarred')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${
-                        darkMode
-                          ? 'bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700'
-                          : 'bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400'
-                      } text-white`}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-40"
                     >
                       ⭐
                     </button>
@@ -1514,45 +1601,22 @@
                       <button
                         onClick={handleToggleDeleteMode}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${
-                          deleteMode
-                            ? 'bg-red-600 hover:bg-red-700 text-white'
-                            : darkMode
-                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          deleteMode ? 'bg-red-600 hover:bg-red-700 text-white' : currentTheme.button
                         }`}
                       >
                         🗑️ {deleteMode ? t('actions.cancel') : t('deleteMode.selectToDelete')}
                       </button>
                     )}
                     <button
-                      onClick={() => setDarkMode(!darkMode)}
-                      className={`p-2 rounded-lg transition-all ${
-                        darkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-                      }`}
-                      title={t('darkMode.toggle')}
-                    >
-                      {darkMode ? '☀️' : '🌙'}
-                    </button>
-                    <button
                       onClick={() => setShowHelp(true)}
-                      className={`p-2 rounded-lg transition-all ${
-                        darkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-                      }`}
+                      className={`p-2 rounded-lg transition-all ${currentTheme.button}`}
                       title={t('help.title')}
                     >
                       ❓
                     </button>
                     <button
                       onClick={() => setShowSettings(true)}
-                      className={`p-2 rounded-lg transition-all ${
-                        darkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-                      }`}
+                      className={`p-2 rounded-lg transition-all ${currentTheme.button}`}
                       title={t('settings.title')}
                     >
                       ⚙️
@@ -1571,26 +1635,16 @@
                           placeholder={t('images.searchPlaceholder')}
                           value={searchTerm}
                           onChange={e => updateActiveTab({ searchTerm: e.target.value })}
-                          className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${
-                            darkMode
-                              ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
-                              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
-                          } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+                          className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${currentTheme.input} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
                         />
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={`flex items-center rounded-lg border overflow-hidden ${
-                        darkMode ? 'border-gray-600' : 'border-gray-300'
-                      }`}>
+                      <div className={`flex items-center rounded-lg border overflow-hidden ${currentTheme.border}`}>
                         <select
                           value={sortBy}
                           onChange={e => setSortBy(e.target.value)}
-                          className={`px-3 py-2 border-none transition-colors ${
-                            darkMode
-                              ? 'bg-gray-700 text-white'
-                              : 'bg-white text-gray-900'
-                          }`}
+                          className={`px-3 py-2 border-none transition-colors ${currentTheme.bgSecondary} ${currentTheme.text}`}
                         >
                           <option value="name">{t('sort.name')}</option>
                           <option value="date">{t('sort.date')}</option>
@@ -1598,11 +1652,7 @@
                         </select>
                         <button
                           onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-                          className={`px-3 py-2 border-l transition-colors ${
-                            darkMode
-                              ? 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'
-                              : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
-                          }`}
+                          className={`px-3 py-2 border-l transition-colors ${currentTheme.bgSecondary} ${currentTheme.border} ${currentTheme.text}`}
                           title={sortOrder === 'asc' ? t('sort.ascending') : t('sort.descending')}
                         >
                           {sortBy === 'name'
@@ -1612,34 +1662,30 @@
                             : (sortOrder === 'asc' ? 'L→S' : 'S→L')}
                         </button>
                       </div>
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${
-                        darkMode ? 'border-gray-600' : 'border-gray-300'
-                      }`}>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg border ${currentTheme.border}`}>
                         <button
                           onClick={() => setColumnCount(c => Math.max(2, c - 1))}
-                          className={`px-2 py-1 rounded ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
+                          className={`px-2 py-1 rounded ${currentTheme.button}`}
                           disabled={columnCount <= 2}
                         >-</button>
                         <span className="px-2 text-sm">{columnCount} {t('sort.columns')}</span>
                         <button
                           onClick={() => setColumnCount(c => Math.min(8, c + 1))}
-                          className={`px-2 py-1 rounded ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
+                          className={`px-2 py-1 rounded ${currentTheme.button}`}
                           disabled={columnCount >= 8}
                         >+</button>
                       </div>
                       <button
                         onClick={() => setShowStarButton(s => !s)}
                         className={`px-2 py-2 rounded-lg border transition-colors ${
-                          showStarButton
-                            ? 'bg-yellow-500 border-yellow-500 text-white'
-                            : darkMode ? 'bg-gray-700 border-gray-600 text-gray-400' : 'bg-white border-gray-300 text-gray-400'
+                          showStarButton ? 'bg-amber-500 border-amber-500 text-white' : `${currentTheme.bgSecondary} ${currentTheme.border} ${currentTheme.textSecondary}`
                         }`}
                         title={showStarButton ? t('star.hideQuickStar') : t('star.showQuickStar')}
                       >
                         ⭐
                       </button>
                     </div>
-                    <div className="text-sm text-gray-500 whitespace-nowrap">{t('images.showingOf', { shown: displayedImages.length, total: filteredImages.length })}</div>
+                    <div className={`text-sm ${currentTheme.textSecondary} whitespace-nowrap`}>{t('images.showingOf', { shown: displayedImages.length, total: filteredImages.length })}</div>
                   </div>
                 )}
               </div>
@@ -1647,9 +1693,7 @@
             {showHistoryPanel && (
               <div className="fixed inset-0 z-50" onClick={() => setShowHistoryPanel(false)}>
                 <div
-                  className={`absolute top-20 left-4 right-4 max-w-2xl mx-auto backdrop-blur-xl rounded-xl shadow-2xl border ${
-                    darkMode ? 'bg-gray-900/90 border-gray-700' : 'bg-white/90 border-gray-200'
-                  }`}
+                  className={`absolute top-20 left-4 right-4 max-w-2xl mx-auto backdrop-blur-xl rounded-xl shadow-2xl border ${currentTheme.bgSecondary} ${currentTheme.border}`}
                   onClick={e => e.stopPropagation()}
                 >
                   <div className="p-4">
@@ -1657,7 +1701,7 @@
                       <span className="text-lg font-semibold">{t('navigation.historyAndRecent')}</span>
                       <button
                         onClick={() => setShowHistoryPanel(false)}
-                        className="text-gray-500 hover:text-gray-700 p-1"
+                        className={`${currentTheme.textSecondary} hover:opacity-70 p-1`}
                       >
                         ✕
                       </button>
@@ -1665,7 +1709,7 @@
 
                     {dirHistory.length > 0 && (
                       <div className="mb-4">
-                        <div className="text-sm font-medium text-gray-500 mb-2">{t('navigation.sessionHistory')} ({dirHistory.length})</div>
+                        <div className={`text-sm font-medium ${currentTheme.textSecondary} mb-2`}>{t('navigation.sessionHistory')} ({dirHistory.length})</div>
                         <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                           {dirHistory.map((dir, idx) => (
                             <button
@@ -1677,10 +1721,8 @@
                               }}
                               className={`px-3 py-1 rounded text-sm truncate max-w-xs transition-colors ${
                                 idx === historyIndex
-                                  ? 'bg-blue-500 text-white'
-                                  : darkMode
-                                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                  ? `${currentTheme.accent} text-white`
+                                  : currentTheme.button
                               }`}
                               title={dir}
                             >
@@ -1693,7 +1735,7 @@
 
                     {recentDirs.length > 0 && (
                       <div>
-                        <div className="text-sm font-medium text-gray-500 mb-2">{t('navigation.recentlyAccessed')}</div>
+                        <div className={`text-sm font-medium ${currentTheme.textSecondary} mb-2`}>{t('navigation.recentlyAccessed')}</div>
                         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                           {recentDirs.map((dir, idx) => (
                             <button
@@ -1704,10 +1746,8 @@
                               }}
                               className={`px-3 py-1 rounded text-sm truncate max-w-xs transition-colors ${
                                 dir === selectedDir
-                                  ? 'bg-green-500 text-white'
-                                  : darkMode
-                                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                  ? 'bg-emerald-500 text-white'
+                                  : currentTheme.button
                               }`}
                               title={dir}
                             >
@@ -1719,7 +1759,7 @@
                     )}
 
                     {dirHistory.length === 0 && recentDirs.length === 0 && (
-                      <div className="text-center text-gray-500 py-4">
+                      <div className={`text-center ${currentTheme.textSecondary} py-4`}>
                         {t('navigation.noHistoryYet')}
                       </div>
                     )}
@@ -1730,19 +1770,19 @@
             <main>
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
+                  <div className={`animate-spin rounded-full h-16 w-16 border-b-4 ${currentTheme.accentText.replace('text-', 'border-')} mb-4`}></div>
                   <p className="text-lg font-medium">{t('app.scanningDirectory')}</p>
                 </div>
               ) : allImages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="text-8xl mb-6">🖼️</div>
                   <h2 className="text-2xl font-medium mb-3">{t('images.noImagesFound')}</h2>
-                  <p className="text-gray-500 mb-8 max-w-md">
+                  <p className={`${currentTheme.textSecondary} mb-8 max-w-md`}>
                     {t('images.selectDirectoryToStart')}
                   </p>
                   <button
                     onClick={handleDirSelect}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                    className={`flex items-center gap-2 px-6 py-3 ${currentTheme.accent} text-white rounded-lg transition-colors font-medium`}
                   >
                     📁 {t('actions.selectDirectory')}
                   </button>
@@ -1753,7 +1793,7 @@
                   <h2 className="text-2xl font-medium mb-3">
                     {t('images.noMatchesFound')}
                   </h2>
-                  <p className="text-gray-500">
+                  <p className={currentTheme.textSecondary}>
                     {t('images.tryAdjustingSearch')}
                   </p>
                 </div>
@@ -1764,7 +1804,7 @@
                   onToggleSelection={handleToggleImageSelection}
                   onStar={handleStarImage}
                   deleteMode={deleteMode}
-                  darkMode={darkMode}
+                  theme={currentTheme}
                   isSelected={isSelectedForDeletion}
                   loadMoreObserverRef={loadMoreObserverRef}
                   loadingMore={loadingMore}
@@ -1872,7 +1912,9 @@
             )}
             {showSettings && (
               <SettingsModal
-                darkMode={darkMode}
+                theme={theme}
+                currentTheme={currentTheme}
+                setTheme={setTheme}
                 showSettings={showSettings}
                 setShowSettings={setShowSettings}
                 clickOutsideToClose={clickOutsideToClose}
@@ -1894,7 +1936,9 @@
       }
 
       const SettingsModal = ({
-        darkMode,
+        theme,
+        currentTheme,
+        setTheme,
         showSettings,
         setShowSettings,
         clickOutsideToClose,
@@ -1913,50 +1957,69 @@
         const { t, locale, setLocale, availableLocales } = useI18n()
         return (
           <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => { setShowSettings(false); setEditingKey(null) }}>
-            <div className={`p-6 rounded-xl max-w-lg w-full mx-4 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} onClick={e => e.stopPropagation()}>
+            <div className={`p-6 rounded-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto ${currentTheme.bgSecondary} ${currentTheme.text}`} onClick={e => e.stopPropagation()}>
               <h2 className="text-xl font-bold mb-4">{t('settings.title')}</h2>
 
+              <h3 className="text-lg font-semibold mb-3">{t('settings.appearance')}</h3>
+              <div className={`mb-4 p-3 rounded-lg ${currentTheme.bg}`}>
+                <div className="grid grid-cols-4 gap-2">
+                  {Object.entries(THEMES).map(([key, th]) => (
+                    <button
+                      key={key}
+                      onClick={() => setTheme(key)}
+                      className={`p-2 rounded-lg text-xs font-medium transition-all ${
+                        theme === key ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+                      } ${th.bg} ${th.text}`}
+                      title={th.name}
+                    >
+                      <div className={`h-4 w-full rounded mb-1 bg-gradient-to-r ${th.gradient}`}></div>
+                      {th.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <h3 className="text-lg font-semibold mb-3">{t('settings.behavior')}</h3>
-              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
                 <span>{t('settings.language')}</span>
                 <select
                   value={locale}
                   onChange={e => setLocale(e.target.value)}
-                  className={`px-3 py-1 rounded ${darkMode ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-900'}`}
+                  className={`px-3 py-1 rounded ${currentTheme.button}`}
                 >
                   {availableLocales.map(loc => (
                     <option key={loc} value={loc}>{LOCALE_NAMES[loc] || loc}</option>
                   ))}
                 </select>
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
                 <span>{t('settings.clickOutsideToClose')}</span>
                 <button
                   onClick={() => setClickOutsideToClose(v => !v)}
-                  className={`px-3 py-1 rounded ${clickOutsideToClose ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                  className={`px-3 py-1 rounded ${clickOutsideToClose ? 'bg-emerald-500 text-white' : currentTheme.button}`}
                 >
                   {clickOutsideToClose ? t('settings.on') : t('settings.off')}
                 </button>
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
                 <span>{t('settings.confirmationPrompts')}</span>
                 <button
                   onClick={() => setConfirmPrompts(v => !v)}
-                  className={`px-3 py-1 rounded ${confirmPrompts ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                  className={`px-3 py-1 rounded ${confirmPrompts ? 'bg-emerald-500 text-white' : currentTheme.button}`}
                 >
                   {confirmPrompts ? t('settings.on') : t('settings.off')}
                 </button>
               </div>
-              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
                 <span>{t('settings.showActionFeedback')}</span>
                 <button
                   onClick={() => setShowActionFeedback(v => !v)}
-                  className={`px-3 py-1 rounded ${showActionFeedback ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                  className={`px-3 py-1 rounded ${showActionFeedback ? 'bg-emerald-500 text-white' : currentTheme.button}`}
                 >
                   {showActionFeedback ? t('settings.on') : t('settings.off')}
                 </button>
               </div>
-              <div className="flex items-center justify-between py-2 mb-4 border-b border-gray-600">
+              <div className={`flex items-center justify-between py-2 mb-4 border-b ${currentTheme.border}`}>
                 <span>{t('settings.maxImageSize')}</span>
                 <div className="flex items-center gap-2">
                   <input
@@ -1974,11 +2037,11 @@
               <h3 className="text-lg font-semibold mb-3">{t('settings.keybindings')}</h3>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {Object.keys(keybindings).map(action => (
-                  <div key={action} className="flex items-center justify-between py-2 border-b border-gray-600">
+                  <div key={action} className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
                     <span>{t(KEYBINDING_LABELS[action])}</span>
                     <button
                       onClick={() => setEditingKey(action)}
-                      className={`px-3 py-1 rounded ${editingKey === action ? 'bg-blue-500 text-white animate-pulse' : 'bg-gray-600 text-white'}`}
+                      className={`px-3 py-1 rounded ${editingKey === action ? 'bg-blue-500 text-white animate-pulse' : currentTheme.button}`}
                       onKeyDown={e => {
                         if (editingKey === action) {
                           e.preventDefault()
@@ -1995,13 +2058,13 @@
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => { setKeybindings(DEFAULT_KEYBINDINGS); setEditingKey(null) }}
-                  className="flex-1 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500"
+                  className={`flex-1 py-2 rounded-lg ${currentTheme.button}`}
                 >
                   {t('actions.resetToDefault')}
                 </button>
                 <button
                   onClick={() => { setShowSettings(false); setEditingKey(null) }}
-                  className="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  className={`flex-1 py-2 rounded-lg ${currentTheme.accent} text-white`}
                 >
                   {t('actions.done')}
                 </button>

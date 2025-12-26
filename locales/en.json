@@ -90,6 +90,7 @@
   },
   "settings": {
     "title": "Settings",
+    "appearance": "Appearance",
     "behavior": "Behavior",
     "clickOutsideToClose": "Click outside to close viewer",
     "confirmationPrompts": "Confirmation prompts",

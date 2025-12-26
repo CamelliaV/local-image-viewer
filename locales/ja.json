@@ -90,6 +90,7 @@
   },
   "settings": {
     "title": "設定",
+    "appearance": "外観",
     "behavior": "動作",
     "clickOutsideToClose": "外側クリックでビューアを閉じる",
     "confirmationPrompts": "確認プロンプト",
