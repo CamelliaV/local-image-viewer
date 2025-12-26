@@ -17,7 +17,9 @@
     "saveCrop": "クロップを保存",
     "saveAs": "名前を付けて保存...",
     "reset": "リセット",
-    "resetToDefault": "デフォルトに戻す"
+    "resetToDefault": "デフォルトに戻す",
+    "clearAll": "すべてクリア",
+    "remove": "削除"
   },
   "navigation": {
     "back": "戻る",
@@ -96,6 +98,7 @@
     "confirmationPrompts": "確認プロンプト",
     "showActionFeedback": "操作フィードバックを表示",
     "maxImageSize": "最大画像サイズ (vw)",
+    "retainImages": "読み込み済み画像を保持（スムーズスクロール）",
     "keybindings": "キーバインド",
     "on": "オン",
     "off": "オフ",

@@ -17,7 +17,9 @@
     "saveCrop": "Save Crop",
     "saveAs": "Save As...",
     "reset": "Reset",
-    "resetToDefault": "Reset to Default"
+    "resetToDefault": "Reset to Default",
+    "clearAll": "Clear All",
+    "remove": "Remove"
   },
   "navigation": {
     "back": "Back",
@@ -96,6 +98,7 @@
     "confirmationPrompts": "Confirmation prompts",
     "showActionFeedback": "Show action feedback (alerts)",
     "maxImageSize": "Max image size (vw)",
+    "retainImages": "Retain loaded images (smoother scroll)",
     "keybindings": "Keybindings",
     "on": "ON",
     "off": "OFF",

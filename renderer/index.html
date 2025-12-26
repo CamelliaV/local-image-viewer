@@ -382,13 +382,17 @@
           isSelected,
           showStarButton,
           onContextMenu,
-          starVersion
+          starVersion,
+          retainImages
         }) => {
           const { t } = useI18n()
-          const [imageLoaded, setImageLoaded] = useState(false)
+          const [imageLoaded, setImageLoaded] = useState(() => retainImages && loadedImagesCache.has(image.fullPath))
           const [imageError, setImageError] = useState(false)
           const [isStarred, setIsStarred] = useState(false)
-          const handleImageLoad = useCallback(() => setImageLoaded(true), [])
+          const handleImageLoad = useCallback(() => {
+            setImageLoaded(true)
+            if (retainImages) loadedImagesCache.add(image.fullPath)
+          }, [image.fullPath, retainImages])
           const handleImageError = useCallback(() => setImageError(true), [])
           const handleClick = useCallback(() => {
             if (deleteMode) {
@@ -482,6 +486,8 @@
         }
       )
 
+      const loadedImagesCache = new Set()
+
       const WaterfallGrid = React.memo(
         ({
           displayedImages,
@@ -498,7 +504,8 @@
           columnCount,
           showStarButton,
           onContextMenu,
-          starVersion
+          starVersion,
+          retainImages
         }) => {
           const { t } = useI18n()
           const columns = useMemo(() => {
@@ -526,6 +533,7 @@
                         showStarButton={showStarButton}
                         onContextMenu={onContextMenu}
                         starVersion={starVersion}
+                        retainImages={retainImages}
                       />
                     ))}
                   </div>
@@ -1106,6 +1114,9 @@
           const saved = localStorage.getItem('recentDirs')
           return saved ? JSON.parse(saved) : []
         })
+        const [retainImages, setRetainImages] = useState(
+          () => localStorage.getItem('retainImages') === 'true'
+        )
 
         // Derived values from active tab
         const selectedDir = activeTab.selectedDir
@@ -1184,6 +1195,10 @@
         useEffect(() => {
           localStorage.setItem('recentDirs', JSON.stringify(recentDirs))
         }, [recentDirs])
+
+        useEffect(() => {
+          localStorage.setItem('retainImages', retainImages.toString())
+        }, [retainImages])
 
         useEffect(() => {
           // Save tabs (without images to avoid huge localStorage)
@@ -1709,25 +1724,47 @@
 
                     {dirHistory.length > 0 && (
                       <div className="mb-4">
-                        <div className={`text-sm font-medium ${currentTheme.textSecondary} mb-2`}>{t('navigation.sessionHistory')} ({dirHistory.length})</div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`text-sm font-medium ${currentTheme.textSecondary}`}>{t('navigation.sessionHistory')} ({dirHistory.length})</span>
+                          <button
+                            onClick={() => updateActiveTab({ dirHistory: [], historyIndex: -1 })}
+                            className={`text-xs px-2 py-0.5 rounded ${currentTheme.button} hover:text-red-400`}
+                            title={t('actions.clearAll')}
+                          >
+                            {t('actions.clearAll')}
+                          </button>
+                        </div>
                         <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                           {dirHistory.map((dir, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                updateActiveTab({ historyIndex: idx })
-                                loadDir(dir, false)
-                                setShowHistoryPanel(false)
-                              }}
-                              className={`px-3 py-1 rounded text-sm truncate max-w-xs transition-colors ${
-                                idx === historyIndex
-                                  ? `${currentTheme.accent} text-white`
-                                  : currentTheme.button
-                              }`}
-                              title={dir}
-                            >
-                              {dir.split(/[\\/]/).pop() || dir}
-                            </button>
+                            <div key={idx} className="group relative">
+                              <button
+                                onClick={() => {
+                                  updateActiveTab({ historyIndex: idx })
+                                  loadDir(dir, false)
+                                  setShowHistoryPanel(false)
+                                }}
+                                className={`px-3 py-1 pr-6 rounded text-sm truncate max-w-xs transition-colors ${
+                                  idx === historyIndex
+                                    ? `${currentTheme.accent} text-white`
+                                    : currentTheme.button
+                                }`}
+                                title={dir}
+                              >
+                                {dir.split(/[\\/]/).pop() || dir}
+                              </button>
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  const newHistory = dirHistory.filter((_, i) => i !== idx)
+                                  const newIndex = idx < historyIndex ? historyIndex - 1 : (idx === historyIndex ? Math.min(historyIndex, newHistory.length - 1) : historyIndex)
+                                  updateActiveTab({ dirHistory: newHistory, historyIndex: Math.max(-1, newIndex) })
+                                }}
+                                className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-xs hover:text-red-400 transition-opacity"
+                                title={t('actions.remove')}
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1735,24 +1772,44 @@
 
                     {recentDirs.length > 0 && (
                       <div>
-                        <div className={`text-sm font-medium ${currentTheme.textSecondary} mb-2`}>{t('navigation.recentlyAccessed')}</div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`text-sm font-medium ${currentTheme.textSecondary}`}>{t('navigation.recentlyAccessed')}</span>
+                          <button
+                            onClick={() => setRecentDirs([])}
+                            className={`text-xs px-2 py-0.5 rounded ${currentTheme.button} hover:text-red-400`}
+                            title={t('actions.clearAll')}
+                          >
+                            {t('actions.clearAll')}
+                          </button>
+                        </div>
                         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                           {recentDirs.map((dir, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                loadDir(dir)
-                                setShowHistoryPanel(false)
-                              }}
-                              className={`px-3 py-1 rounded text-sm truncate max-w-xs transition-colors ${
-                                dir === selectedDir
-                                  ? 'bg-emerald-500 text-white'
-                                  : currentTheme.button
-                              }`}
-                              title={dir}
-                            >
-                              {dir.split(/[\\/]/).pop() || dir}
-                            </button>
+                            <div key={idx} className="group relative">
+                              <button
+                                onClick={() => {
+                                  loadDir(dir)
+                                  setShowHistoryPanel(false)
+                                }}
+                                className={`px-3 py-1 pr-6 rounded text-sm truncate max-w-xs transition-colors ${
+                                  dir === selectedDir
+                                    ? 'bg-emerald-500 text-white'
+                                    : currentTheme.button
+                                }`}
+                                title={dir}
+                              >
+                                {dir.split(/[\\/]/).pop() || dir}
+                              </button>
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  setRecentDirs(prev => prev.filter((_, i) => i !== idx))
+                                }}
+                                className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-xs hover:text-red-400 transition-opacity"
+                                title={t('actions.remove')}
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1814,6 +1871,7 @@
                   showStarButton={showStarButton}
                   onContextMenu={handleMainContextMenu}
                   starVersion={starVersion}
+                  retainImages={retainImages}
                 />
               )}
             </main>
@@ -1929,6 +1987,8 @@
                 setKeybindings={setKeybindings}
                 editingKey={editingKey}
                 setEditingKey={setEditingKey}
+                retainImages={retainImages}
+                setRetainImages={setRetainImages}
               />
             )}
           </div>
@@ -1952,7 +2012,9 @@
         keybindings,
         setKeybindings,
         editingKey,
-        setEditingKey
+        setEditingKey,
+        retainImages,
+        setRetainImages
       }) => {
         const { t, locale, setLocale, availableLocales } = useI18n()
         return (
@@ -2019,7 +2081,7 @@
                   {showActionFeedback ? t('settings.on') : t('settings.off')}
                 </button>
               </div>
-              <div className={`flex items-center justify-between py-2 mb-4 border-b ${currentTheme.border}`}>
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
                 <span>{t('settings.maxImageSize')}</span>
                 <div className="flex items-center gap-2">
                   <input
@@ -2032,6 +2094,15 @@
                   />
                   <span className="w-10 text-right">{maxImageSize}%</span>
                 </div>
+              </div>
+              <div className={`flex items-center justify-between py-2 mb-4 border-b ${currentTheme.border}`}>
+                <span>{t('settings.retainImages')}</span>
+                <button
+                  onClick={() => setRetainImages(v => !v)}
+                  className={`px-3 py-1 rounded ${retainImages ? 'bg-emerald-500 text-white' : currentTheme.button}`}
+                >
+                  {retainImages ? t('settings.on') : t('settings.off')}
+                </button>
               </div>
 
               <h3 className="text-lg font-semibold mb-3">{t('settings.keybindings')}</h3>
