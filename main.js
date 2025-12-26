@@ -18,10 +18,40 @@ const { pathToFileURL, fileURLToPath } = require('url')
 
 let mainWindow
 
-// Performance optimizations
+// --- PERFORMANCE OPTIMIZATIONS for Zen4 + NVIDIA Blackwell ---
+// GPU acceleration - safe defaults that work with NVIDIA
 app.commandLine.appendSwitch('enable-gpu-rasterization')
-app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('enable-accelerated-2d-canvas')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
+app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('enable-accelerated-video-decode')
+app.commandLine.appendSwitch('enable-accelerated-mjpeg-decode')
+
+// Enable safe performance features
+app.commandLine.appendSwitch('enable-features', [
+  'CanvasOopRasterization',      // Out-of-process canvas rasterization
+  'ParallelDownloading',         // Parallel resource loading
+  'BackForwardCache'             // Cache navigation history
+].join(','))
+
+// Disable features that hurt performance on Linux
+app.commandLine.appendSwitch('disable-features', [
+  'UseChromeOSDirectVideoDecoder', // Not needed on Linux
+  'CalculateNativeWinOcclusion',   // Windows-only
+  'MediaFoundationVideoCapture'    // Windows-only
+].join(','))
+
+// Memory optimizations for large galleries
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096')
+app.commandLine.appendSwitch('disk-cache-size', '536870912')  // 512MB disk cache
+
+// GPU rasterization tuning
+app.commandLine.appendSwitch('num-raster-threads', '4')  // Match Zen4 CCX topology
+
+// Wayland/KDE optimizations (Arch Linux + KDE Plasma)
+if (process.env.XDG_SESSION_TYPE === 'wayland') {
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+}
 
 // Cache for starred status checks
 const starredCache = new Map()
@@ -306,5 +336,83 @@ ipcMain.handle('rename-image', async (event, { oldPath, newName }) => {
   } catch (error) {
     console.error('Rename (copy) error:', error)
     throw new Error(`Failed to copy with new name: ${error.message}`)
+  }
+})
+
+// --- i18n HANDLERS ---
+
+ipcMain.handle('get-system-locale', () => {
+  return app.getLocale()
+})
+
+ipcMain.handle('get-locale-data', async (event, locale) => {
+  // Handle both development and production paths
+  let localesPath = path.join(__dirname, 'locales')
+  console.log('Looking for locales in:', localesPath)
+
+  if (!fsSync.existsSync(localesPath)) {
+    // In production, locales are in resources folder
+    localesPath = path.join(process.resourcesPath, 'locales')
+    console.log('Dev path not found, trying production path:', localesPath)
+  }
+
+  // Mapping for locale variants
+  const localeMapping = {
+    'zh': 'zh-CN',
+    'zh-Hans': 'zh-CN',
+    'zh-Hant': 'zh-CN',
+    'zh-TW': 'zh-CN',
+    'zh-HK': 'zh-CN',
+    'ja-JP': 'ja'
+  }
+
+  // Normalize locale
+  let normalizedLocale = localeMapping[locale] || locale
+  console.log('Requested locale:', locale, '-> Normalized:', normalizedLocale)
+
+  // Try exact match first
+  let localePath = path.join(localesPath, `${normalizedLocale}.json`)
+  if (!fsSync.existsSync(localePath)) {
+    // Try language code only (e.g., 'en-US' -> 'en')
+    const langCode = normalizedLocale.split('-')[0]
+    localePath = path.join(localesPath, `${langCode}.json`)
+    console.log('Exact match not found, trying language code:', langCode)
+  }
+
+  // Fallback to English
+  if (!fsSync.existsSync(localePath)) {
+    localePath = path.join(localesPath, 'en.json')
+    console.log('Falling back to English')
+  }
+
+  console.log('Final locale path:', localePath)
+
+  try {
+    const data = await fs.readFile(localePath, 'utf-8')
+    const parsed = JSON.parse(data)
+    console.log('Loaded locale:', path.basename(localePath, '.json'), 'with', Object.keys(parsed).length, 'top-level keys')
+    return { locale: path.basename(localePath, '.json'), data: parsed }
+  } catch (error) {
+    console.error('Failed to load locale:', error)
+    // Return empty object as fallback
+    return { locale: 'en', data: {} }
+  }
+})
+
+ipcMain.handle('get-available-locales', async () => {
+  // Handle both development and production paths
+  let localesPath = path.join(__dirname, 'locales')
+  if (!fsSync.existsSync(localesPath)) {
+    localesPath = path.join(process.resourcesPath, 'locales')
+  }
+
+  try {
+    const files = await fs.readdir(localesPath)
+    return files
+      .filter(f => f.endsWith('.json'))
+      .map(f => f.replace('.json', ''))
+  } catch (error) {
+    console.error('Failed to list locales:', error)
+    return ['en']
   }
 })

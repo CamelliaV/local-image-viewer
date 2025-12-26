@@ -1,5 +1,6 @@
 {
-  "name": "local-image-viewer",
+  "name": "hanasato",
+  "productName": "Hanasato",
   "version": "1.0.0",
   "description": "Fast local image viewer with Pinterest-style layout",
   "main": "main.js",

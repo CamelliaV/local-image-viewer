@@ -1,101 +1,176 @@
----
-# Local Image Viewer
----
+# Hanasato
 
-- A vibe coding product —— local image viewer built with Electron and React, featuring a Pinterest-style waterfall layout, infinite scrolling, directory navigation, deletion and fav.
+A local image viewer built with Electron and React, featuring a Pinterest-style waterfall layout, GPU acceleration, advanced image viewing/editing, and multi-language support.
 
 ![](./imgs/image_10.avif)
 ![](./imgs/image_12.avif)
 ![](./imgs/image_11.avif)
 
-## ✨ Key Features
+## Key Features
 
-- **⚡ Fast Local Scanning:** Quickly scans directories and sub-directories for images using `fast-glob`.
-- **🖼️ Waterfall Layout:** Displays images in a beautiful and efficient Pinterest-style grid.
-- **🖱️ Infinite Scrolling:** Smoothly loads more images as you scroll down the gallery.
-- **🎨 Dark & Light Modes:** Toggles between themes with a single click, remembering your preference.
-- **🔍 Full-Screen Viewer:** Click any image to open a full-screen modal with keyboard navigation (`←`, `→` for next/previous, `Esc` to close).
-- **⭐ Star/Favorite System:**
-  - Copy any image to a dedicated `Starred Images` folder in your system's Pictures directory.
-  - A dedicated "View Starred" button to quickly switch to your favorites gallery.
-- **🗑️ Batch Deletion:**
-  - Enter "Select to Delete" mode to choose multiple images.
-  - A floating action bar shows your selection count.
-  - Delete all selected images to the recycle bin/trash in one operation.
-- **🔎 Search & Filter:** Instantly filter the current gallery by filename or folder path.
-- **📂 File System Integration:**
-  - Open an image's containing folder directly from the app.
-  - All deletions move files to the system's recycle bin/trash, not permanently.
-- **🔒 Secure by Design:** Uses a custom `local-image://` protocol to securely load local files without disabling web security.
+### Core Functionality
+- **Fast Local Scanning** - Quickly scans directories and sub-directories using `fast-glob`
+- **Waterfall Layout** - Pinterest-style responsive grid with configurable column count (2-8 columns)
+- **Infinite Scrolling** - Smooth lazy loading as you scroll
+- **Multi-Tab Support** - Open multiple directories in separate tabs with persistent state
+- **Dark/Light Mode** - Toggle between themes with preference persistence
 
-## 🛠️ Technology Stack
+### Advanced Image Viewer
+- **Full-Screen Modal** - Click any image for immersive viewing
+- **Zoom & Pan** - Mouse wheel zoom (0.5x-5x) with drag mode for panning
+- **Slideshow Mode** - Auto-advance through images with 3-second intervals
+- **Image Editing**:
+  - **Crop** - Draw selection area and save cropped region
+  - **Resize** - Custom width/height resizing
+  - **Rename/Save As** - Copy with new filename
 
-- **[Electron](https://www.electronjs.org/)**: Core framework for building the cross-platform desktop application.
-- **[React](https://reactjs.org/)**: Used for building the user interface.
-- **[Tailwind CSS](https://tailwindcss.com/)**: For utility-first styling.
-- **[Node.js](https://nodejs.org/)**: Powers the main process for all file system operations.
+### Organization
+- **Star/Favorite System** - Copy images to dedicated Starred Images folder
+- **Quick Star** - Hover-to-show star button on thumbnails (toggleable)
+- **Batch Deletion** - Multi-select mode with floating action bar
+- **Search & Filter** - Filter by filename, path, or folder name
+- **Sorting** - Sort by name, date, or size (ascending/descending)
 
-## 🚀 Getting Started
+### Navigation
+- **Directory History** - Back/forward navigation with mouse button support
+- **Recently Accessed** - Persistent list of recent directories
+- **Drag & Drop** - Drop folders directly to load
+- **File Location** - Open containing folder for any image
 
-Follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
+### Customization
+- **Multi-Language Support** - English, Chinese (简体中文), Japanese (日本語)
+- **Auto Language Detection** - Defaults to system language
+- **Customizable Keybindings** - Remap all keyboard shortcuts
+- **Configurable Settings**:
+  - Click outside to close viewer
+  - Confirmation prompts
+  - Action feedback alerts
+  - Max image size (viewport width)
+
+### Performance
+- **GPU Acceleration** - Hardware-accelerated rendering
+- **Zero-Copy** - Optimized image loading
+- **Image Caching** - Efficient memory management
+- **Lazy Loading** - Load images on demand
+
+## Keyboard Shortcuts
+
+### Image Viewer
+| Key | Action |
+|-----|--------|
+| `←` / `→` | Previous / Next image |
+| `+` / `-` | Zoom in / out |
+| `0` | Reset zoom |
+| `d` | Toggle drag mode (when zoomed) |
+| `Space` | Toggle slideshow |
+| `Delete` | Delete image |
+| `s` | Star/Unstar image |
+| `c` | Copy to clipboard |
+| `l` | Open file location |
+| `x` | Crop mode |
+| `r` | Resize mode |
+| `Escape` | Close viewer |
+
+### Main Window
+| Key | Action |
+|-----|--------|
+| `Ctrl+O` | Open directory |
+| `Ctrl+T` | New tab |
+| `Ctrl+W` | Close tab |
+| `f` | View favorites |
+| `Delete` | Toggle delete mode |
+| `m` | Toggle dark mode |
+| `h` | Toggle history panel |
+| `,` | Open settings |
+| `?` | Open help |
+
+## Technology Stack
+
+- **[Electron](https://www.electronjs.org/)** - Cross-platform desktop framework
+- **[React 18](https://reactjs.org/)** - UI library
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first styling
+- **[fast-glob](https://github.com/mrmlnc/fast-glob)** - High-performance file scanning
+- **[Electron Forge](https://www.electronforge.io/)** - Build and packaging
+
+## Getting Started
 
 ### Prerequisites
 
-You need to have [Node.js](https://nodejs.org/en/download/) (which includes `npm`) installed on your system.
+- [Node.js](https://nodejs.org/) (v16 or higher)
+- npm or yarn
 
 ### Installation
 
-1.  **Clone the repository:**
+```bash
+# Clone the repository
+git clone https://github.com/CamelliaV/hanasato.git
 
-    ```bash
-    git clone https://github.com/CamelliaV/local-image-viewer.git
-    ```
+# Navigate to project directory
+cd hanasato
 
-2.  **Navigate into the project directory:**
+# Install dependencies
+npm install
+```
 
-    ```bash
-    cd local-image-viewer
-    ```
+### Running
 
-3.  **Install the dependencies:**
-    ```bash
-    npm install
-    ```
+```bash
+# Development mode (with DevTools)
+npm run dev
 
-### Running the Application
+# Production mode
+npm start
+```
 
-- **To run the app in development mode** (with DevTools open):
+### Building
 
-  ```bash
-  npm run dev
-  ```
+```bash
+# Create distributable package
+npm run make
 
-- **To run the app in a standard production-like mode:**
-  ```bash
-  npm start
-  ```
+# Package without creating installer
+npm run package
+```
 
-### Packaging the Application
+### Platform-Specific Packages
 
-- **To use the app in exe:**
-  ```bash
-  npm install --save-dev @electron-forge/cli
-  ```
-  ```bash
-  npx electron-forge import
-  ```
-  ```bash
-  npm run make
-  ```
+The build system supports:
+- **Windows** - Squirrel installer (.exe)
+- **macOS** - ZIP archive
+- **Linux** - DEB, RPM, and ZIP packages
 
-## ⚙️ How It Works
+#### Arch Linux
 
-The application is built on a standard Electron architecture:
+```bash
+# Build and install from PKGBUILD
+makepkg -si
+```
 
-- **Main Process (`main.js`):** This is the Node.js backend of the app. It is responsible for creating the browser window, handling all file system interactions (scanning directories, deleting files, copying files), and managing all Inter-Process Communication (IPC) channels.
+## Architecture
 
-- **Renderer Process (`renderer/index.html`):** This is the frontend of the app, built entirely with React. It handles all user interface elements and logic. It cannot access the file system directly.
+```
+├── main.js           # Electron main process
+├── preload.js        # Secure IPC bridge (contextBridge)
+├── renderer/
+│   └── index.html    # React single-page application
+├── locales/          # i18n translation files
+│   ├── en.json
+│   ├── zh-CN.json
+│   └── ja.json
+└── assets/           # Icons and desktop entry
+```
 
-- **Preload Script (`preload.js`):** This is the secure bridge between the frontend and backend. It uses Electron's `contextBridge` to safely expose specific functions from the Main process (like `getImages` or `deleteImage`) to the Renderer process.
+### Security
 
-- **Custom Protocol (`local-image://`):** To securely display images from the user's local disk without disabling web security, the app registers a custom protocol. When the frontend tries to load `<img src="local-image:///path/to/image.png">`, the Main process intercepts this request, translates it to a real file path, and serves the file's content.
+- **Context Isolation** - Renderer process isolated from Node.js
+- **Custom Protocol** - `local-image://` protocol for secure local file access
+- **No Remote Content** - All resources loaded locally
+- **ASAR Integrity** - Packaged with integrity validation
+
+## Supported Formats
+
+Images: `jpg`, `jpeg`, `png`, `gif`, `bmp`, `webp`, `avif`, `svg`, `ico`, `tiff`, `tif`
+
+## License
+
+MIT License

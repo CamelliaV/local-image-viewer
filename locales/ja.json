@@ -1,0 +1,158 @@
+{
+  "app": {
+    "title": "Hanasato",
+    "loading": "読み込み中...",
+    "failedToLoad": "読み込み失敗",
+    "scanning": "スキャン中...",
+    "scanningDirectory": "ディレクトリをスキャン中..."
+  },
+  "actions": {
+    "selectDirectory": "ディレクトリを選択",
+    "delete": "削除",
+    "deleteSelected": "選択を削除",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "done": "完了",
+    "save": "保存",
+    "saveCrop": "クロップを保存",
+    "saveAs": "名前を付けて保存...",
+    "reset": "リセット",
+    "resetToDefault": "デフォルトに戻す"
+  },
+  "navigation": {
+    "back": "戻る",
+    "forward": "進む",
+    "newTab": "新しいタブ",
+    "closeTab": "タブを閉じる",
+    "historyAndRecent": "履歴と最近",
+    "sessionHistory": "セッション履歴",
+    "recentlyAccessed": "最近アクセス",
+    "noHistoryYet": "まだ履歴がありません。ディレクトリを開くとここに表示されます。"
+  },
+  "images": {
+    "noImagesFound": "画像が見つかりません",
+    "selectDirectoryToStart": "ディレクトリを選択して開始します。",
+    "noMatchesFound": "一致するものが見つかりません",
+    "tryAdjustingSearch": "検索語を調整してみてください。",
+    "searchPlaceholder": "画像を検索...",
+    "allImagesLoaded": "全 {count} 枚の画像を読み込みました！",
+    "loadingMore": "さらに読み込み中...",
+    "showingOf": "{total} 件中 {shown} 件表示",
+    "imagesSelected": "{count} 枚の画像を選択中"
+  },
+  "viewer": {
+    "previousImage": "前の画像",
+    "nextImage": "次の画像",
+    "closeEsc": "閉じる (Esc)",
+    "deleteImage": "画像を削除",
+    "openFileLocation": "ファイルの場所を開く",
+    "copyToClipboard": "クリップボードにコピー",
+    "copyToStarred": "お気に入りフォルダにコピー",
+    "slideshow": "スライドショー",
+    "startSlideshow": "スライドショーを開始",
+    "stopSlideshow": "スライドショーを停止",
+    "enableDragMode": "ドラッグモードを有効化",
+    "dragModeOn": "ドラッグモード ON",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "resetZoom": "ズームをリセット",
+    "crop": "クロップ",
+    "resize": "リサイズ",
+    "rename": "名前変更",
+    "modified": "更新日時",
+    "of": "/"
+  },
+  "deleteMode": {
+    "selectToDelete": "削除する画像を選択",
+    "confirmDelete": "{count} 枚の画像をゴミ箱に移動しますか？"
+  },
+  "star": {
+    "viewStarred": "お気に入りを表示",
+    "starImage": "お気に入りに追加",
+    "unstarImage": "お気に入りから削除",
+    "starUnstar": "お気に入り登録 / 解除",
+    "alreadyStarred": "この画像は既にお気に入りです。お気に入りから削除しますか？",
+    "copiedToStarred": "お気に入りフォルダにコピーしました。",
+    "hideQuickStar": "クイックお気に入りを非表示",
+    "showQuickStar": "クイックお気に入りを表示"
+  },
+  "contextMenu": {
+    "viewImage": "画像を表示",
+    "openLocation": "場所を開く"
+  },
+  "sort": {
+    "name": "名前",
+    "date": "日付",
+    "size": "サイズ",
+    "ascending": "昇順",
+    "descending": "降順",
+    "columns": "列"
+  },
+  "settings": {
+    "title": "設定",
+    "behavior": "動作",
+    "clickOutsideToClose": "外側クリックでビューアを閉じる",
+    "confirmationPrompts": "確認プロンプト",
+    "showActionFeedback": "操作フィードバックを表示",
+    "maxImageSize": "最大画像サイズ (vw)",
+    "keybindings": "キーバインド",
+    "on": "オン",
+    "off": "オフ",
+    "language": "言語"
+  },
+  "help": {
+    "title": "キーボードショートカット",
+    "imageViewer": "画像ビューア",
+    "navigate": "ナビゲート",
+    "zoom": "ズーム",
+    "mainWindow": "メインウィンドウ",
+    "openDirectory": "ディレクトリを開く",
+    "other": "その他",
+    "dragDropFolders": "フォルダをドラッグ＆ドロップで読み込み",
+    "scrollWheelZoom": "スクロールホイールでズーム",
+    "mouseBackForward": "マウスの戻る/進むで履歴を移動",
+    "rightClickMenu": "右クリックでコンテキストメニュー"
+  },
+  "keybindingLabels": {
+    "prevImage": "前の画像",
+    "nextImage": "次の画像",
+    "closeModal": "モーダルを閉じる",
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "resetZoom": "ズームをリセット",
+    "toggleDragMode": "ドラッグモード切替",
+    "toggleSlideshow": "スライドショー切替",
+    "deleteImage": "画像を削除",
+    "starImage": "お気に入り切替",
+    "copyToClipboard": "クリップボードにコピー",
+    "openLocation": "ファイルの場所を開く",
+    "cropImage": "画像をクロップ",
+    "resizeImage": "画像をリサイズ",
+    "openDirectory": "ディレクトリを開く",
+    "viewFavorites": "お気に入りを表示",
+    "toggleDeleteMode": "削除モード切替",
+    "newTab": "新しいタブ",
+    "closeTab": "タブを閉じる",
+    "toggleDarkMode": "ダークモード切替",
+    "openSettings": "設定を開く",
+    "openHelp": "ヘルプを開く",
+    "toggleHistoryPanel": "履歴パネル切替"
+  },
+  "prompts": {
+    "enterNewFilename": "新しいファイル名を入力:",
+    "copied": "コピーしました！",
+    "imageCopiedToClipboard": "画像をクリップボードにコピーしました！",
+    "croppedImageSaved": "クロップした画像を保存しました！",
+    "resizedImageSaved": "リサイズした画像を保存しました！",
+    "fileCopiedNewName": "新しい名前でコピーしました！",
+    "fileRenamedSuccess": "ファイル名を変更しました！",
+    "error": "エラー",
+    "errorLoading": "ディレクトリの読み込みエラー",
+    "errorDeleting": "画像の削除エラー",
+    "errorOpeningLocation": "ファイルの場所を開くエラー",
+    "fileWithNameExists": "同じ名前のファイルが既に存在します"
+  },
+  "darkMode": {
+    "toggle": "ダークモード切替"
+  }
+}

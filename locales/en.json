@@ -1,0 +1,158 @@
+{
+  "app": {
+    "title": "Hanasato",
+    "loading": "Loading...",
+    "failedToLoad": "Failed to load",
+    "scanning": "Scanning...",
+    "scanningDirectory": "Scanning directory..."
+  },
+  "actions": {
+    "selectDirectory": "Select Directory",
+    "delete": "Delete",
+    "deleteSelected": "Delete Selected",
+    "cancel": "Cancel",
+    "close": "Close",
+    "done": "Done",
+    "save": "Save",
+    "saveCrop": "Save Crop",
+    "saveAs": "Save As...",
+    "reset": "Reset",
+    "resetToDefault": "Reset to Default"
+  },
+  "navigation": {
+    "back": "Back",
+    "forward": "Forward",
+    "newTab": "New Tab",
+    "closeTab": "Close Tab",
+    "historyAndRecent": "History & Recent",
+    "sessionHistory": "Session History",
+    "recentlyAccessed": "Recently Accessed",
+    "noHistoryYet": "No history yet. Open some directories to see them here."
+  },
+  "images": {
+    "noImagesFound": "No Images Found",
+    "selectDirectoryToStart": "Select a directory to get started.",
+    "noMatchesFound": "No Matches Found",
+    "tryAdjustingSearch": "Try adjusting your search term.",
+    "searchPlaceholder": "Search images...",
+    "allImagesLoaded": "All {count} images loaded!",
+    "loadingMore": "Loading more...",
+    "showingOf": "Showing {shown} of {total}",
+    "imagesSelected": "{count} image(s) selected"
+  },
+  "viewer": {
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "closeEsc": "Close (Esc)",
+    "deleteImage": "Delete image",
+    "openFileLocation": "Open file location",
+    "copyToClipboard": "Copy to clipboard",
+    "copyToStarred": "Copy to Starred folder",
+    "slideshow": "Slideshow",
+    "startSlideshow": "Start Slideshow",
+    "stopSlideshow": "Stop Slideshow",
+    "enableDragMode": "Enable Drag Mode",
+    "dragModeOn": "Drag Mode ON",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetZoom": "Reset zoom",
+    "crop": "Crop",
+    "resize": "Resize",
+    "rename": "Rename",
+    "modified": "Modified",
+    "of": "of"
+  },
+  "deleteMode": {
+    "selectToDelete": "Select to Delete",
+    "confirmDelete": "Are you sure you want to move {count} image(s) to the recycle bin?"
+  },
+  "star": {
+    "viewStarred": "View Starred Images",
+    "starImage": "Star image",
+    "unstarImage": "Unstar image",
+    "starUnstar": "Star / Unstar",
+    "alreadyStarred": "Image already starred. Remove from starred folder?",
+    "copiedToStarred": "Image copied to Starred folder.",
+    "hideQuickStar": "Hide quick star",
+    "showQuickStar": "Show quick star"
+  },
+  "contextMenu": {
+    "viewImage": "View Image",
+    "openLocation": "Open Location"
+  },
+  "sort": {
+    "name": "Name",
+    "date": "Date",
+    "size": "Size",
+    "ascending": "ascending",
+    "descending": "descending",
+    "columns": "cols"
+  },
+  "settings": {
+    "title": "Settings",
+    "behavior": "Behavior",
+    "clickOutsideToClose": "Click outside to close viewer",
+    "confirmationPrompts": "Confirmation prompts",
+    "showActionFeedback": "Show action feedback (alerts)",
+    "maxImageSize": "Max image size (vw)",
+    "keybindings": "Keybindings",
+    "on": "ON",
+    "off": "OFF",
+    "language": "Language"
+  },
+  "help": {
+    "title": "Keyboard Shortcuts",
+    "imageViewer": "Image Viewer",
+    "navigate": "Navigate",
+    "zoom": "Zoom",
+    "mainWindow": "Main Window",
+    "openDirectory": "Open directory",
+    "other": "Other",
+    "dragDropFolders": "Drag & drop folders to load",
+    "scrollWheelZoom": "Scroll wheel to zoom in viewer",
+    "mouseBackForward": "Mouse back/forward for history",
+    "rightClickMenu": "Right-click for context menu"
+  },
+  "keybindingLabels": {
+    "prevImage": "Previous Image",
+    "nextImage": "Next Image",
+    "closeModal": "Close Modal",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "resetZoom": "Reset Zoom",
+    "toggleDragMode": "Toggle Drag Mode",
+    "toggleSlideshow": "Toggle Slideshow",
+    "deleteImage": "Delete Image",
+    "starImage": "Star/Unstar Image",
+    "copyToClipboard": "Copy to Clipboard",
+    "openLocation": "Open File Location",
+    "cropImage": "Crop Image",
+    "resizeImage": "Resize Image",
+    "openDirectory": "Open Directory",
+    "viewFavorites": "View Favorites",
+    "toggleDeleteMode": "Toggle Delete Mode",
+    "newTab": "New Tab",
+    "closeTab": "Close Tab",
+    "toggleDarkMode": "Toggle Dark Mode",
+    "openSettings": "Open Settings",
+    "openHelp": "Open Help",
+    "toggleHistoryPanel": "Toggle History Panel"
+  },
+  "prompts": {
+    "enterNewFilename": "Enter new filename:",
+    "copied": "Copied!",
+    "imageCopiedToClipboard": "Image copied to clipboard!",
+    "croppedImageSaved": "Cropped image saved!",
+    "resizedImageSaved": "Resized image saved!",
+    "fileCopiedNewName": "Copied with new name!",
+    "fileRenamedSuccess": "File renamed successfully!",
+    "error": "Error",
+    "errorLoading": "Error loading directory",
+    "errorDeleting": "Error deleting image(s)",
+    "errorOpeningLocation": "Error opening file location",
+    "fileWithNameExists": "A file with that name already exists"
+  },
+  "darkMode": {
+    "toggle": "Toggle dark mode"
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "app": {
+    "title": "Hanasato",
+    "loading": "加载中...",
+    "failedToLoad": "加载失败",
+    "scanning": "扫描中...",
+    "scanningDirectory": "正在扫描目录..."
+  },
+  "actions": {
+    "selectDirectory": "选择目录",
+    "delete": "删除",
+    "deleteSelected": "删除所选",
+    "cancel": "取消",
+    "close": "关闭",
+    "done": "完成",
+    "save": "保存",
+    "saveCrop": "保存裁剪",
+    "saveAs": "另存为...",
+    "reset": "重置",
+    "resetToDefault": "恢复默认"
+  },
+  "navigation": {
+    "back": "后退",
+    "forward": "前进",
+    "newTab": "新标签页",
+    "closeTab": "关闭标签页",
+    "historyAndRecent": "历史和最近",
+    "sessionHistory": "会话历史",
+    "recentlyAccessed": "最近访问",
+    "noHistoryYet": "暂无历史记录。打开一些目录后即可在此查看。"
+  },
+  "images": {
+    "noImagesFound": "未找到图片",
+    "selectDirectoryToStart": "选择一个目录以开始。",
+    "noMatchesFound": "未找到匹配项",
+    "tryAdjustingSearch": "尝试调整搜索词。",
+    "searchPlaceholder": "搜索图片...",
+    "allImagesLoaded": "已加载全部 {count} 张图片！",
+    "loadingMore": "加载更多...",
+    "showingOf": "显示 {shown} / {total}",
+    "imagesSelected": "已选择 {count} 张图片"
+  },
+  "viewer": {
+    "previousImage": "上一张",
+    "nextImage": "下一张",
+    "closeEsc": "关闭 (Esc)",
+    "deleteImage": "删除图片",
+    "openFileLocation": "打开文件位置",
+    "copyToClipboard": "复制到剪贴板",
+    "copyToStarred": "复制到收藏夹",
+    "slideshow": "幻灯片",
+    "startSlideshow": "开始幻灯片",
+    "stopSlideshow": "停止幻灯片",
+    "enableDragMode": "启用拖动模式",
+    "dragModeOn": "拖动模式已开启",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "resetZoom": "重置缩放",
+    "crop": "裁剪",
+    "resize": "调整大小",
+    "rename": "重命名",
+    "modified": "修改时间",
+    "of": "/"
+  },
+  "deleteMode": {
+    "selectToDelete": "选择删除",
+    "confirmDelete": "确定要将 {count} 张图片移至回收站吗？"
+  },
+  "star": {
+    "viewStarred": "查看收藏图片",
+    "starImage": "收藏图片",
+    "unstarImage": "取消收藏",
+    "starUnstar": "收藏 / 取消收藏",
+    "alreadyStarred": "图片已收藏。是否从收藏夹中移除？",
+    "copiedToStarred": "图片已复制到收藏夹。",
+    "hideQuickStar": "隐藏快速收藏",
+    "showQuickStar": "显示快速收藏"
+  },
+  "contextMenu": {
+    "viewImage": "查看图片",
+    "openLocation": "打开位置"
+  },
+  "sort": {
+    "name": "名称",
+    "date": "日期",
+    "size": "大小",
+    "ascending": "升序",
+    "descending": "降序",
+    "columns": "列"
+  },
+  "settings": {
+    "title": "设置",
+    "behavior": "行为",
+    "clickOutsideToClose": "点击外部关闭查看器",
+    "confirmationPrompts": "确认提示",
+    "showActionFeedback": "显示操作反馈（提示框）",
+    "maxImageSize": "最大图片尺寸 (vw)",
+    "keybindings": "快捷键",
+    "on": "开",
+    "off": "关",
+    "language": "语言"
+  },
+  "help": {
+    "title": "快捷键",
+    "imageViewer": "图片查看器",
+    "navigate": "导航",
+    "zoom": "缩放",
+    "mainWindow": "主窗口",
+    "openDirectory": "打开目录",
+    "other": "其他",
+    "dragDropFolders": "拖放文件夹以加载",
+    "scrollWheelZoom": "滚轮缩放查看器",
+    "mouseBackForward": "鼠标前进/后退导航历史",
+    "rightClickMenu": "右键打开菜单"
+  },
+  "keybindingLabels": {
+    "prevImage": "上一张图片",
+    "nextImage": "下一张图片",
+    "closeModal": "关闭模态框",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "resetZoom": "重置缩放",
+    "toggleDragMode": "切换拖动模式",
+    "toggleSlideshow": "切换幻灯片",
+    "deleteImage": "删除图片",
+    "starImage": "收藏/取消收藏",
+    "copyToClipboard": "复制到剪贴板",
+    "openLocation": "打开文件位置",
+    "cropImage": "裁剪图片",
+    "resizeImage": "调整图片大小",
+    "openDirectory": "打开目录",
+    "viewFavorites": "查看收藏",
+    "toggleDeleteMode": "切换删除模式",
+    "newTab": "新标签页",
+    "closeTab": "关闭标签页",
+    "toggleDarkMode": "切换深色模式",
+    "openSettings": "打开设置",
+    "openHelp": "打开帮助",
+    "toggleHistoryPanel": "切换历史面板"
+  },
+  "prompts": {
+    "enterNewFilename": "输入新文件名：",
+    "copied": "已复制！",
+    "imageCopiedToClipboard": "图片已复制到剪贴板！",
+    "croppedImageSaved": "裁剪图片已保存！",
+    "resizedImageSaved": "调整大小后的图片已保存！",
+    "fileCopiedNewName": "已复制并使用新名称！",
+    "fileRenamedSuccess": "文件重命名成功！",
+    "error": "错误",
+    "errorLoading": "加载目录出错",
+    "errorDeleting": "删除图片出错",
+    "errorOpeningLocation": "打开文件位置出错",
+    "fileWithNameExists": "已存在同名文件"
+  },
+  "darkMode": {
+    "toggle": "切换深色模式"
+  }
+}

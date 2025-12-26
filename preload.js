@@ -18,5 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyImageToClipboard: filePath =>
     ipcRenderer.invoke('copy-image-to-clipboard', filePath),
   renameImage: (oldPath, newName) =>
-    ipcRenderer.invoke('rename-image', { oldPath, newName })
+    ipcRenderer.invoke('rename-image', { oldPath, newName }),
+
+  // i18n
+  getSystemLocale: () => ipcRenderer.invoke('get-system-locale'),
+  getLocaleData: locale => ipcRenderer.invoke('get-locale-data', locale),
+  getAvailableLocales: () => ipcRenderer.invoke('get-available-locales')
 })

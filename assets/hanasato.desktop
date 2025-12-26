@@ -1,12 +1,12 @@
 [Desktop Entry]
-Name=Local Image Viewer
+Name=Hanasato
 GenericName=Image Viewer
 Comment=Fast local image viewer with Pinterest-style layout
-Exec=local-image-viewer %F
-Icon=local-image-viewer
+Exec=hanasato %F
+Icon=hanasato
 Terminal=false
 Type=Application
 Categories=Graphics;Viewer;Photography;
 MimeType=image/jpeg;image/png;image/gif;image/webp;image/bmp;image/svg+xml;image/tiff;image/avif;
-Keywords=image;photo;picture;viewer;gallery;
-StartupWMClass=local-image-viewer
+Keywords=image;photo;picture;viewer;gallery;hanasato;
+StartupWMClass=hanasato

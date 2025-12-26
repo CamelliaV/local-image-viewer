@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Local Image Viewer</title>
+    <title>Hanasato</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -103,10 +103,82 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      console.log('Script starting - React:', typeof React, 'ReactDOM:', typeof ReactDOM)
+    </script>
     <script type="text/babel">
-      const { useState, useEffect, useCallback, useRef, useMemo } = React
+      const { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } = React
       const BATCH_SIZE = 20
       const COLUMN_COUNT = 4
+
+      // --- i18n System ---
+      const I18nContext = createContext({ t: key => key, locale: 'en', setLocale: () => {}, availableLocales: ['en'] })
+
+      const useI18n = () => useContext(I18nContext)
+
+      const I18nProvider = ({ children }) => {
+        const [translations, setTranslations] = useState({})
+        const [locale, setLocaleState] = useState(() => localStorage.getItem('locale') || '')
+        const [availableLocales, setAvailableLocales] = useState(['en'])
+        const [initialized, setInitialized] = useState(false)
+
+        useEffect(() => {
+          const initLocale = async () => {
+            const locales = await window.electronAPI.getAvailableLocales()
+            setAvailableLocales(locales)
+
+            let targetLocale = localStorage.getItem('locale')
+            if (!targetLocale) {
+              targetLocale = await window.electronAPI.getSystemLocale()
+            }
+            const { locale: resolvedLocale, data } = await window.electronAPI.getLocaleData(targetLocale)
+            setTranslations(data)
+            setLocaleState(resolvedLocale)
+            setInitialized(true)
+          }
+          initLocale()
+        }, [])
+
+        const setLocale = useCallback(async (newLocale) => {
+          const { locale: resolvedLocale, data } = await window.electronAPI.getLocaleData(newLocale)
+          setTranslations(data)
+          setLocaleState(resolvedLocale)
+          localStorage.setItem('locale', resolvedLocale)
+        }, [])
+
+        const t = useCallback((key, params = {}) => {
+          const keys = key.split('.')
+          let value = translations
+          for (const k of keys) {
+            if (value && typeof value === 'object' && k in value) {
+              value = value[k]
+            } else {
+              return key // Return key if translation not found
+            }
+          }
+          if (typeof value !== 'string') return key
+          // Replace {param} placeholders
+          return value.replace(/\{(\w+)\}/g, (_, name) => params[name] ?? `{${name}}`)
+        }, [translations])
+
+        if (!initialized) {
+          return <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        }
+
+        return (
+          <I18nContext.Provider value={{ t, locale, setLocale, availableLocales }}>
+            {children}
+          </I18nContext.Provider>
+        )
+      }
+
+      const LOCALE_NAMES = {
+        'en': 'English',
+        'zh-CN': '简体中文',
+        'ja': '日本語'
+      }
 
       const DEFAULT_KEYBINDINGS = {
         // Image viewer navigation
@@ -140,29 +212,29 @@
       }
 
       const KEYBINDING_LABELS = {
-        prevImage: 'Previous Image',
-        nextImage: 'Next Image',
-        closeModal: 'Close Modal',
-        zoomIn: 'Zoom In',
-        zoomOut: 'Zoom Out',
-        resetZoom: 'Reset Zoom',
-        toggleDragMode: 'Toggle Drag Mode',
-        toggleSlideshow: 'Toggle Slideshow',
-        deleteImage: 'Delete Image',
-        starImage: 'Star/Unstar Image',
-        copyToClipboard: 'Copy to Clipboard',
-        openLocation: 'Open File Location',
-        cropImage: 'Crop Image',
-        resizeImage: 'Resize Image',
-        openDirectory: 'Open Directory',
-        viewFavorites: 'View Favorites',
-        toggleDeleteMode: 'Toggle Delete Mode',
-        newTab: 'New Tab',
-        closeTab: 'Close Tab',
-        toggleDarkMode: 'Toggle Dark Mode',
-        openSettings: 'Open Settings',
-        openHelp: 'Open Help',
-        toggleHistoryPanel: 'Toggle History Panel'
+        prevImage: 'keybindingLabels.prevImage',
+        nextImage: 'keybindingLabels.nextImage',
+        closeModal: 'keybindingLabels.closeModal',
+        zoomIn: 'keybindingLabels.zoomIn',
+        zoomOut: 'keybindingLabels.zoomOut',
+        resetZoom: 'keybindingLabels.resetZoom',
+        toggleDragMode: 'keybindingLabels.toggleDragMode',
+        toggleSlideshow: 'keybindingLabels.toggleSlideshow',
+        deleteImage: 'keybindingLabels.deleteImage',
+        starImage: 'keybindingLabels.starImage',
+        copyToClipboard: 'keybindingLabels.copyToClipboard',
+        openLocation: 'keybindingLabels.openLocation',
+        cropImage: 'keybindingLabels.cropImage',
+        resizeImage: 'keybindingLabels.resizeImage',
+        openDirectory: 'keybindingLabels.openDirectory',
+        viewFavorites: 'keybindingLabels.viewFavorites',
+        toggleDeleteMode: 'keybindingLabels.toggleDeleteMode',
+        newTab: 'keybindingLabels.newTab',
+        closeTab: 'keybindingLabels.closeTab',
+        toggleDarkMode: 'keybindingLabels.toggleDarkMode',
+        openSettings: 'keybindingLabels.openSettings',
+        openHelp: 'keybindingLabels.openHelp',
+        toggleHistoryPanel: 'keybindingLabels.toggleHistoryPanel'
       }
 
       const formatKey = key => key === ' ' ? 'Space' : key
@@ -188,6 +260,7 @@
           onContextMenu,
           starVersion
         }) => {
+          const { t } = useI18n()
           const [imageLoaded, setImageLoaded] = useState(false)
           const [imageError, setImageError] = useState(false)
           const [isStarred, setIsStarred] = useState(false)
@@ -222,7 +295,7 @@
               >
                 <div className="h-full flex flex-col items-center justify-center text-gray-500">
                   <div className="text-2xl mb-2">❌</div>
-                  <div className="text-sm">Failed to load</div>
+                  <div className="text-sm">{t('app.failedToLoad')}</div>
                 </div>
               </div>
             )
@@ -245,7 +318,7 @@
                 <div className="placeholder-card">
                   <div className="text-center">
                     <div className="text-2xl mb-2">🖼️</div>
-                    <div className="text-sm">Loading...</div>
+                    <div className="text-sm">{t('app.loading')}</div>
                   </div>
                 </div>
               )}
@@ -272,7 +345,7 @@
                   <button
                     onClick={handleStar}
                     className={`absolute top-2 right-2 bg-black bg-opacity-50 p-1.5 rounded-full transition-opacity hover:bg-opacity-70 ${isStarred ? 'opacity-100 text-yellow-400' : 'opacity-0 group-hover:opacity-100 text-gray-400'}`}
-                    title={isStarred ? 'Unstar image' : 'Star image'}
+                    title={isStarred ? t('star.unstarImage') : t('star.starImage')}
                   >
                     {isStarred ? '⭐' : '☆'}
                   </button>
@@ -311,6 +384,7 @@
           onContextMenu,
           starVersion
         }) => {
+          const { t } = useI18n()
           const columns = useMemo(() => {
             const cols = Array.from({ length: columnCount }, () => [])
             displayedImages.forEach((image, index) => {
@@ -346,16 +420,16 @@
                   {loadingMore ? (
                     <div className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                      <span>Loading more...</span>
+                      <span>{t('images.loadingMore')}</span>
                     </div>
                   ) : (
-                    <div className="text-gray-500">Loading more...</div>
+                    <div className="text-gray-500">{t('images.loadingMore')}</div>
                   )}
                 </div>
               )}
               {!hasMore && displayedImages.length > 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  🎉 All {filteredImagesCount} images loaded!
+                  🎉 {t('images.allImagesLoaded', { count: filteredImagesCount })}
                 </div>
               )}
             </div>
@@ -377,6 +451,7 @@
           showActionFeedback,
           maxImageSize
         }) => {
+          const { t } = useI18n()
           const [zoom, setZoom] = useState(1)
           const [position, setPosition] = useState({ x: 0, y: 0 })
           const [isDragging, setIsDragging] = useState(false)
@@ -447,8 +522,8 @@
           }, [])
 
           const handleMouseDown = useCallback(e => {
-            // Only allow drag when in drag mode and zoomed
-            if (dragMode && zoomRef.current > 1 && !editMode) {
+            // Allow drag when in drag mode (no zoom requirement)
+            if (dragMode && !editMode) {
               e.preventDefault()
               e.stopPropagation()
               setIsDragging(true)
@@ -517,13 +592,13 @@
               const dataUrl = canvas.toDataURL('image/png')
               try {
                 await window.electronAPI.saveEditedImage(selectedImage.fullPath, dataUrl, 'cropped')
-                alert('Cropped image saved!')
+                alert(t('prompts.croppedImageSaved'))
                 setEditMode(null)
                 setCropArea(null)
-              } catch (err) { alert('Error: ' + err.message) }
+              } catch (err) { alert(t('prompts.error') + ': ' + err.message) }
             }
             img.src = selectedImage.url.replace('local-image://', 'file://')
-          }, [cropArea, dimensions, selectedImage])
+          }, [cropArea, dimensions, selectedImage, t])
 
           const saveResize = useCallback(async () => {
             if (!resizeW || !resizeH || !dimensions) return
@@ -538,12 +613,12 @@
               const dataUrl = canvas.toDataURL('image/png')
               try {
                 await window.electronAPI.saveEditedImage(selectedImage.fullPath, dataUrl, `${canvas.width}x${canvas.height}`)
-                alert('Resized image saved!')
+                alert(t('prompts.resizedImageSaved'))
                 setEditMode(null)
-              } catch (err) { alert('Error: ' + err.message) }
+              } catch (err) { alert(t('prompts.error') + ': ' + err.message) }
             }
             img.src = selectedImage.url.replace('local-image://', 'file://')
-          }, [resizeW, resizeH, dimensions, selectedImage])
+          }, [resizeW, resizeH, dimensions, selectedImage, t])
 
           useEffect(() => {
             if (!selectedImage) return
@@ -555,15 +630,15 @@
               else if (key === keybindings.zoomIn || key === '=') setZoom(z => { const nz = Math.min(z * 1.2, 5); zoomRef.current = nz; return nz })
               else if (key === keybindings.zoomOut) setZoom(z => { const nz = Math.max(z / 1.2, 0.5); zoomRef.current = nz; return nz })
               else if (key === keybindings.resetZoom) { setZoom(1); zoomRef.current = 1; setPosition({ x: 0, y: 0 }); positionRef.current = { x: 0, y: 0 }; setDragMode(false) }
-              else if (key === keybindings.toggleDragMode || key === 'D') { if (zoomRef.current > 1) setDragMode(d => !d) }
+              else if (key === keybindings.toggleDragMode || key === 'D') { setDragMode(d => !d) }
               else if (key === keybindings.toggleSlideshow) { e.preventDefault(); setSlideshow(s => !s) }
               else if (key === keybindings.deleteImage) { onDelete([selectedImage.fullPath]) }
               else if (key === keybindings.starImage || key === 'S') { onStar(selectedImage) }
               else if (key === keybindings.copyToClipboard || key === 'C') {
                 try {
                   await window.electronAPI.copyImageToClipboard(selectedImage.fullPath)
-                  if (showActionFeedback) alert('Copied!')
-                } catch (err) { alert('Error: ' + err.message) }
+                  if (showActionFeedback) alert(t('prompts.copied'))
+                } catch (err) { alert(t('prompts.error') + ': ' + err.message) }
               }
               else if (key === keybindings.openLocation || key === 'L') { onOpenLocation(selectedImage) }
               else if (key === keybindings.cropImage || key === 'X') { setEditMode(editMode === 'crop' ? null : 'crop'); setCropArea(null) }
@@ -605,7 +680,7 @@
                       maxWidth: `${maxImageSize}vw`,
                       maxHeight: `${maxImageSize - 5}vh`,
                       transform: editMode ? 'none' : `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-                      cursor: editMode === 'crop' ? 'crosshair' : (dragMode && zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'),
+                      cursor: editMode === 'crop' ? 'crosshair' : (dragMode ? (isDragging ? 'grabbing' : 'grab') : 'default'),
                       transition: isDragging ? 'none' : 'transform 0.1s ease-out'
                     }}
                     onWheel={editMode ? undefined : handleWheel}
@@ -628,48 +703,48 @@
                     style={{ left: contextMenu.x, top: contextMenu.y }}
                     onClick={closeContextMenu}
                   >
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onDelete([selectedImage.fullPath])}>Delete</button>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onOpenLocation(selectedImage)}>Open Location</button>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={async () => { await window.electronAPI.copyImageToClipboard(selectedImage.fullPath); if (showActionFeedback) alert('Copied!') }}>Copy to Clipboard</button>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onStar(selectedImage)}>Star / Unstar</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onDelete([selectedImage.fullPath])}>{t('actions.delete')}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onOpenLocation(selectedImage)}>{t('contextMenu.openLocation')}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={async () => { await window.electronAPI.copyImageToClipboard(selectedImage.fullPath); if (showActionFeedback) alert(t('prompts.copied')) }}>{t('viewer.copyToClipboard')}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => onStar(selectedImage)}>{t('star.starUnstar')}</button>
                     <div className="border-t border-white/20 my-1"></div>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => setSlideshow(s => !s)}>{slideshow ? 'Stop Slideshow' : 'Start Slideshow'}</button>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setEditMode('crop'); setCropArea(null) }}>Crop</button>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setEditMode('resize'); if (dimensions) { setResizeW(String(dimensions.w)); setResizeH(String(dimensions.h)) } }}>Resize</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => setSlideshow(s => !s)}>{slideshow ? t('viewer.stopSlideshow') : t('viewer.startSlideshow')}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setEditMode('crop'); setCropArea(null) }}>{t('viewer.crop')}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setEditMode('resize'); if (dimensions) { setResizeW(String(dimensions.w)); setResizeH(String(dimensions.h)) } }}>{t('viewer.resize')}</button>
                     <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => {
-                      const newName = prompt('Enter new filename:', selectedImage.name)
+                      const newName = prompt(t('prompts.enterNewFilename'), selectedImage.name)
                       if (newName && newName !== selectedImage.name) {
-                        window.electronAPI.renameImage(selectedImage.fullPath, newName).then(() => { if (showActionFeedback) alert('Copied with new name!') }).catch(err => alert('Error: ' + err.message))
+                        window.electronAPI.renameImage(selectedImage.fullPath, newName).then(() => { if (showActionFeedback) alert(t('prompts.fileCopiedNewName')) }).catch(err => alert(t('prompts.error') + ': ' + err.message))
                       }
-                    }}>Save As...</button>
+                    }}>{t('actions.saveAs')}</button>
                     <div className="border-t border-white/20 my-1"></div>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(z => { const nz = Math.min(z * 1.2, 5); zoomRef.current = nz; return nz }) }}>Zoom In</button>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(z => { const nz = Math.max(z / 1.2, 0.5); zoomRef.current = nz; return nz }) }}>Zoom Out</button>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(1); zoomRef.current = 1; setPosition({ x: 0, y: 0 }); positionRef.current = { x: 0, y: 0 }; setDragMode(false) }}>Reset Zoom</button>
-                    <button className={`w-full px-4 py-2 text-left text-sm transition-colors ${dragMode ? 'text-cyan-400 bg-white/5' : 'text-white'} hover:bg-white/10 ${zoom <= 1 ? 'opacity-50' : ''}`} onClick={() => zoom > 1 && setDragMode(d => !d)}>{dragMode ? '✓ Drag Mode ON' : 'Enable Drag Mode'}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(z => { const nz = Math.min(z * 1.2, 5); zoomRef.current = nz; return nz }) }}>{t('viewer.zoomIn')}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(z => { const nz = Math.max(z / 1.2, 0.5); zoomRef.current = nz; return nz }) }}>{t('viewer.zoomOut')}</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setZoom(1); zoomRef.current = 1; setPosition({ x: 0, y: 0 }); positionRef.current = { x: 0, y: 0 }; setDragMode(false) }}>{t('viewer.resetZoom')}</button>
+                    <button className={`w-full px-4 py-2 text-left text-sm transition-colors ${dragMode ? 'text-cyan-400 bg-white/5' : 'text-white'} hover:bg-white/10`} onClick={() => setDragMode(d => !d)}>{dragMode ? '✓ ' + t('viewer.dragModeOn') : t('viewer.enableDragMode')}</button>
                     <div className="border-t border-white/20 my-1"></div>
-                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={onClose}>Close</button>
+                    <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={onClose}>{t('actions.close')}</button>
                   </div>
                 )}
 
                 <button
                   onClick={onClose}
                   className="absolute top-4 right-4 bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all text-xl"
-                  title="Close (Esc)"
+                  title={t('viewer.closeEsc')}
                 >
                   ✕
                 </button>
                 <button
                   onClick={() => onDelete([selectedImage.fullPath])}
                   className="absolute top-4 left-4 bg-red-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
-                  title="Delete image"
+                  title={t('viewer.deleteImage')}
                 >
                   🗑️
                 </button>
                 <button
                   onClick={() => onOpenLocation(selectedImage)}
                   className="absolute top-16 left-4 bg-blue-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
-                  title="Open file location"
+                  title={t('viewer.openFileLocation')}
                 >
                   📁
                 </button>
@@ -677,64 +752,63 @@
                   onClick={async () => {
                     try {
                       await window.electronAPI.copyImageToClipboard(selectedImage.fullPath)
-                      if (showActionFeedback) alert('Image copied to clipboard!')
-                    } catch (err) { alert('Error: ' + err.message) }
+                      if (showActionFeedback) alert(t('prompts.imageCopiedToClipboard'))
+                    } catch (err) { alert(t('prompts.error') + ': ' + err.message) }
                   }}
                   className="absolute top-16 left-16 bg-indigo-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
-                  title="Copy to clipboard"
+                  title={t('viewer.copyToClipboard')}
                 >
                   📋
                 </button>
                 <button
                   onClick={() => onStar(selectedImage)}
                   className="absolute top-28 left-4 bg-yellow-400 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all text-lg"
-                  title="Copy to Starred folder"
+                  title={t('viewer.copyToStarred')}
                 >
                   ⭐
                 </button>
                 <button
                   onClick={() => setSlideshow(s => !s)}
                   className={`absolute top-40 left-4 ${slideshow ? 'bg-green-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all`}
-                  title="Slideshow (Space)"
+                  title={t('viewer.slideshow') + ' (Space)'}
                 >
                   {slideshow ? '⏸️' : '▶️'}
                 </button>
                 <button
                   onClick={() => setDragMode(d => !d)}
-                  disabled={zoom <= 1}
-                  className={`absolute top-40 left-16 ${dragMode ? 'bg-cyan-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all disabled:opacity-40`}
-                  title={dragMode ? 'Drag Mode ON (click to disable)' : 'Enable Drag Mode (zoom first)'}
+                  className={`absolute top-40 left-16 ${dragMode ? 'bg-cyan-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all`}
+                  title={dragMode ? t('viewer.dragModeOn') : t('viewer.enableDragMode')}
                 >
                   ✋
                 </button>
                 <button
                   onClick={() => { setEditMode(editMode === 'crop' ? null : 'crop'); setCropArea(null) }}
                   className={`absolute top-52 left-4 ${editMode === 'crop' ? 'bg-purple-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all`}
-                  title="Crop"
+                  title={t('viewer.crop')}
                 >
                   ✂️
                 </button>
                 <button
                   onClick={() => { setEditMode(editMode === 'resize' ? null : 'resize'); if (dimensions) { setResizeW(String(dimensions.w)); setResizeH(String(dimensions.h)) } }}
                   className={`absolute top-64 left-4 ${editMode === 'resize' ? 'bg-purple-500' : 'bg-gray-500'} bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all`}
-                  title="Resize"
+                  title={t('viewer.resize')}
                 >
                   📐
                 </button>
                 <button
                   onClick={() => {
-                    const newName = prompt('Enter new filename:', selectedImage.name)
+                    const newName = prompt(t('prompts.enterNewFilename'), selectedImage.name)
                     if (newName && newName !== selectedImage.name) {
                       window.electronAPI.renameImage(selectedImage.fullPath, newName)
                         .then(result => {
-                          alert('File renamed successfully!')
+                          alert(t('prompts.fileRenamedSuccess'))
                           onClose()
                         })
-                        .catch(err => alert('Error: ' + err.message))
+                        .catch(err => alert(t('prompts.error') + ': ' + err.message))
                     }
                   }}
                   className="absolute top-[19rem] left-4 bg-gray-500 bg-opacity-80 text-white p-2 rounded-full hover:bg-opacity-100 transition-all"
-                  title="Rename"
+                  title={t('viewer.rename')}
                 >
                   ✏️
                 </button>
@@ -744,7 +818,7 @@
                     onClick={saveCrop}
                     className="absolute top-52 left-16 bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
                   >
-                    Save Crop
+                    {t('actions.saveCrop')}
                   </button>
                 )}
 
@@ -753,7 +827,7 @@
                     <input type="number" value={resizeW} onChange={e => setResizeW(e.target.value)} className="w-16 px-1 rounded text-black" placeholder="W" />
                     <span className="text-white">×</span>
                     <input type="number" value={resizeH} onChange={e => setResizeH(e.target.value)} className="w-16 px-1 rounded text-black" placeholder="H" />
-                    <button onClick={saveResize} className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">Save</button>
+                    <button onClick={saveResize} className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">{t('actions.save')}</button>
                   </div>
                 )}
 
@@ -761,21 +835,21 @@
                   <button
                     onClick={() => setZoom(z => { const nz = Math.min(z * 1.2, 5); zoomRef.current = nz; return nz })}
                     className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all"
-                    title="Zoom in (+)"
+                    title={t('viewer.zoomIn') + ' (+)'}
                   >
                     🔍+
                   </button>
                   <button
                     onClick={() => setZoom(z => { const nz = Math.max(z / 1.2, 0.5); zoomRef.current = nz; return nz })}
                     className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all"
-                    title="Zoom out (-)"
+                    title={t('viewer.zoomOut') + ' (-)'}
                   >
                     🔍-
                   </button>
                   <button
                     onClick={() => { setZoom(1); zoomRef.current = 1; setPosition({ x: 0, y: 0 }); positionRef.current = { x: 0, y: 0 }; setDragMode(false) }}
                     className="bg-black bg-opacity-60 text-white p-2 rounded-full hover:bg-opacity-80 transition-all text-sm"
-                    title="Reset zoom (0)"
+                    title={t('viewer.resetZoom') + ' (0)'}
                   >
                     1:1
                   </button>
@@ -790,7 +864,7 @@
                   <button
                     onClick={showPrevious}
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 text-white p-3 rounded-full hover:bg-opacity-80 transition-all text-2xl"
-                    title="Previous image (←)"
+                    title={t('viewer.previousImage')}
                   >
                     ←
                   </button>
@@ -799,7 +873,7 @@
                   <button
                     onClick={showNext}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-60 text-white p-3 rounded-full hover:bg-opacity-80 transition-all text-2xl"
-                    title="Next image (→)"
+                    title={t('viewer.nextImage')}
                   >
                     →
                   </button>
@@ -813,14 +887,14 @@
                     <span>{formatFileSize(selectedImage.size)}</span>
                     {dimensions && <span>{dimensions.w} × {dimensions.h}</span>}
                     <span>
-                      Modified:{' '}
+                      {t('viewer.modified')}:{' '}
                       {new Date(
                         selectedImage.lastModified
                       ).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {currentIndex + 1} of {filteredImages.length}
+                    {currentIndex + 1} {t('viewer.of')} {filteredImages.length}
                   </div>
                 </div>
               </div>
@@ -840,6 +914,7 @@
       })
 
       const ImageViewerApp = () => {
+        const { t } = useI18n()
         const [tabs, setTabs] = useState(() => {
           const saved = localStorage.getItem('tabs')
           if (saved) {
@@ -1053,7 +1128,7 @@
             }
           } catch (error) {
             console.error('Error loading directory:', error)
-            alert('Error loading directory: ' + error.message)
+            alert(t('prompts.errorLoading') + ': ' + error.message)
           } finally {
             setLoading(false)
           }
@@ -1146,6 +1221,8 @@
         useEffect(() => {
           const scrollContainer = scrollContainerRef.current
           if (!scrollContainer || !hasMore) return
+
+          // IntersectionObserver for infinite scroll
           const observer = new IntersectionObserver(
             entries => {
               const [entry] = entries
@@ -1153,16 +1230,30 @@
                 loadMoreImages()
               }
             },
-            { root: scrollContainer, rootMargin: '400px', threshold: 0 }
+            { root: scrollContainer, rootMargin: '600px', threshold: 0.1 }
           )
+
           const observerTarget = loadMoreObserverRef.current
           if (observerTarget) {
             observer.observe(observerTarget)
           }
+
+          // Fallback scroll handler for cases where IntersectionObserver doesn't trigger
+          const handleScroll = () => {
+            if (loadingMore || !hasMore) return
+            const { scrollTop, scrollHeight, clientHeight } = scrollContainer
+            if (scrollTop + clientHeight >= scrollHeight - 800) {
+              loadMoreImages()
+            }
+          }
+
+          scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+
           return () => {
             if (observerTarget) {
               observer.unobserve(observerTarget)
             }
+            scrollContainer.removeEventListener('scroll', handleScroll)
           }
         }, [loadMoreImages, hasMore, loadingMore, selectedDir, displayedImages.length])
 
@@ -1171,7 +1262,7 @@
             const numToDelete = pathsToDelete.length
             if (numToDelete === 0) return
             if (confirmPrompts) {
-              const confirmMessage = `Are you sure you want to move ${numToDelete} image(s) to the recycle bin?`
+              const confirmMessage = t('deleteMode.confirmDelete', { count: numToDelete })
               if (!confirm(confirmMessage)) return
             }
 
@@ -1190,26 +1281,26 @@
                 setSelectedImage(null)
             } catch (error) {
               console.error('Error deleting image(s):', error)
-              alert('Error deleting image(s): ' + error.message)
+              alert(t('prompts.errorDeleting') + ': ' + error.message)
             }
           },
-          [selectedImage, selectedForDeletion, confirmPrompts, allImages, displayedImages, updateActiveTab]
+          [selectedImage, selectedForDeletion, confirmPrompts, allImages, displayedImages, updateActiveTab, t]
         )
 
         const handleStarImage = useCallback(async image => {
           try {
             const result = await window.electronAPI.starImage(image.fullPath)
             if (result.exists) {
-              if (!confirmPrompts || confirm('Image already starred. Remove from starred folder?')) {
+              if (!confirmPrompts || confirm(t('star.alreadyStarred'))) {
                 await window.electronAPI.unstarImage(result.starredPath)
               }
             }
             setStarVersion(v => v + 1)
           } catch (error) {
             console.error('Failed to star image:', error)
-            alert(`Error: ${error.message}`)
+            alert(t('prompts.error') + ': ' + error.message)
           }
-        }, [confirmPrompts])
+        }, [confirmPrompts, t])
 
         const viewFavorites = useCallback(async () => {
           if (!favoritesDir || loading) return
@@ -1244,9 +1335,9 @@
             await window.electronAPI.openFileLocation(image.fullPath)
           } catch (error) {
             console.error('Error opening file location:', error)
-            alert('Error opening file location: ' + error.message)
+            alert(t('prompts.errorOpeningLocation') + ': ' + error.message)
           }
-        }, [])
+        }, [t])
         const handleImageClick = useCallback(
           image => setSelectedImage(image),
           []
@@ -1315,7 +1406,7 @@
                     onClick={() => setActiveTabId(tab.id)}
                   >
                     <span className="text-sm truncate max-w-[120px]">
-                      {tab.selectedDir ? tab.selectedDir.split(/[\\/]/).pop() : 'New Tab'}
+                      {tab.selectedDir ? tab.selectedDir.split(/[\\/]/).pop() : t('navigation.newTab')}
                     </span>
                     {tabs.length > 1 && (
                       <button
@@ -1343,7 +1434,7 @@
                   className={`p-1.5 rounded-lg transition-colors ${
                     darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-200 text-gray-600'
                   }`}
-                  title="New Tab"
+                  title={t('navigation.newTab')}
                 >
                   +
                 </button>
@@ -1351,7 +1442,7 @@
               <div className="max-w-7xl mx-auto px-4 py-4">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Local Image Viewer
+                    {t('app.title')}
                   </h1>
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
@@ -1362,7 +1453,7 @@
                           ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600'
                           : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
                       }`}
-                      title="Back (Mouse Back)"
+                      title={t('navigation.back')}
                     >
                       ◀
                     </button>
@@ -1374,7 +1465,7 @@
                           ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600'
                           : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
                       }`}
-                      title="Forward (Mouse Forward)"
+                      title={t('navigation.forward')}
                     >
                       ▶
                     </button>
@@ -1387,7 +1478,7 @@
                           ? 'bg-gray-700 hover:bg-gray-600'
                           : 'bg-gray-200 hover:bg-gray-300'
                       }`}
-                      title="History & Recent"
+                      title={t('navigation.historyAndRecent')}
                     >
                       📜
                     </button>
@@ -1402,15 +1493,15 @@
                     >
                       📁{' '}
                       {loading
-                        ? 'Scanning...'
+                        ? t('app.scanning')
                         : selectedDir
                         ? window.path.basename(selectedDir)
-                        : 'Select Directory'}
+                        : t('actions.selectDirectory')}
                     </button>
                     <button
                       onClick={viewFavorites}
                       disabled={!favoritesDir || loading}
-                      title={`View Starred Images (${favoritesDir})`}
+                      title={t('star.viewStarred')}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium ${
                         darkMode
                           ? 'bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700'
@@ -1430,7 +1521,7 @@
                             : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                         }`}
                       >
-                        🗑️ {deleteMode ? 'Cancel' : 'Select to Delete'}
+                        🗑️ {deleteMode ? t('actions.cancel') : t('deleteMode.selectToDelete')}
                       </button>
                     )}
                     <button
@@ -1440,6 +1531,7 @@
                           ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400'
                           : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
                       }`}
+                      title={t('darkMode.toggle')}
                     >
                       {darkMode ? '☀️' : '🌙'}
                     </button>
@@ -1450,7 +1542,7 @@
                           ? 'bg-gray-700 hover:bg-gray-600 text-white'
                           : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
                       }`}
-                      title="Keyboard shortcuts"
+                      title={t('help.title')}
                     >
                       ❓
                     </button>
@@ -1461,7 +1553,7 @@
                           ? 'bg-gray-700 hover:bg-gray-600 text-white'
                           : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
                       }`}
-                      title="Settings"
+                      title={t('settings.title')}
                     >
                       ⚙️
                     </button>
@@ -1476,7 +1568,7 @@
                         </span>
                         <input
                           type="text"
-                          placeholder="Search images..."
+                          placeholder={t('images.searchPlaceholder')}
                           value={searchTerm}
                           onChange={e => updateActiveTab({ searchTerm: e.target.value })}
                           className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${
@@ -1500,9 +1592,9 @@
                               : 'bg-white text-gray-900'
                           }`}
                         >
-                          <option value="name">Name</option>
-                          <option value="date">Date</option>
-                          <option value="size">Size</option>
+                          <option value="name">{t('sort.name')}</option>
+                          <option value="date">{t('sort.date')}</option>
+                          <option value="size">{t('sort.size')}</option>
                         </select>
                         <button
                           onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
@@ -1511,7 +1603,7 @@
                               ? 'bg-gray-700 border-gray-600 text-white hover:bg-gray-600'
                               : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-100'
                           }`}
-                          title={`Currently: ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
+                          title={sortOrder === 'asc' ? t('sort.ascending') : t('sort.descending')}
                         >
                           {sortBy === 'name'
                             ? (sortOrder === 'asc' ? 'A→Z' : 'Z→A')
@@ -1528,7 +1620,7 @@
                           className={`px-2 py-1 rounded ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
                           disabled={columnCount <= 2}
                         >-</button>
-                        <span className="px-2 text-sm">{columnCount} cols</span>
+                        <span className="px-2 text-sm">{columnCount} {t('sort.columns')}</span>
                         <button
                           onClick={() => setColumnCount(c => Math.min(8, c + 1))}
                           className={`px-2 py-1 rounded ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
@@ -1542,12 +1634,12 @@
                             ? 'bg-yellow-500 border-yellow-500 text-white'
                             : darkMode ? 'bg-gray-700 border-gray-600 text-gray-400' : 'bg-white border-gray-300 text-gray-400'
                         }`}
-                        title={showStarButton ? 'Hide quick star' : 'Show quick star'}
+                        title={showStarButton ? t('star.hideQuickStar') : t('star.showQuickStar')}
                       >
                         ⭐
                       </button>
                     </div>
-                    <div className="text-sm text-gray-500 whitespace-nowrap">{`Showing ${displayedImages.length} of ${filteredImages.length}`}</div>
+                    <div className="text-sm text-gray-500 whitespace-nowrap">{t('images.showingOf', { shown: displayedImages.length, total: filteredImages.length })}</div>
                   </div>
                 )}
               </div>
@@ -1562,7 +1654,7 @@
                 >
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-lg font-semibold">Navigation</span>
+                      <span className="text-lg font-semibold">{t('navigation.historyAndRecent')}</span>
                       <button
                         onClick={() => setShowHistoryPanel(false)}
                         className="text-gray-500 hover:text-gray-700 p-1"
@@ -1573,7 +1665,7 @@
 
                     {dirHistory.length > 0 && (
                       <div className="mb-4">
-                        <div className="text-sm font-medium text-gray-500 mb-2">Session History ({dirHistory.length})</div>
+                        <div className="text-sm font-medium text-gray-500 mb-2">{t('navigation.sessionHistory')} ({dirHistory.length})</div>
                         <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                           {dirHistory.map((dir, idx) => (
                             <button
@@ -1601,7 +1693,7 @@
 
                     {recentDirs.length > 0 && (
                       <div>
-                        <div className="text-sm font-medium text-gray-500 mb-2">Recently Accessed</div>
+                        <div className="text-sm font-medium text-gray-500 mb-2">{t('navigation.recentlyAccessed')}</div>
                         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                           {recentDirs.map((dir, idx) => (
                             <button
@@ -1628,7 +1720,7 @@
 
                     {dirHistory.length === 0 && recentDirs.length === 0 && (
                       <div className="text-center text-gray-500 py-4">
-                        No history yet. Open some directories to see them here.
+                        {t('navigation.noHistoryYet')}
                       </div>
                     )}
                   </div>
@@ -1639,30 +1731,30 @@
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20">
                   <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
-                  <p className="text-lg font-medium">Scanning directory...</p>
+                  <p className="text-lg font-medium">{t('app.scanningDirectory')}</p>
                 </div>
               ) : allImages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="text-8xl mb-6">🖼️</div>
-                  <h2 className="text-2xl font-medium mb-3">No Images Found</h2>
+                  <h2 className="text-2xl font-medium mb-3">{t('images.noImagesFound')}</h2>
                   <p className="text-gray-500 mb-8 max-w-md">
-                    Select a directory to get started.
+                    {t('images.selectDirectoryToStart')}
                   </p>
                   <button
                     onClick={handleDirSelect}
                     className="flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
                   >
-                    📁 Select Directory
+                    📁 {t('actions.selectDirectory')}
                   </button>
                 </div>
               ) : displayedImages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <div className="text-8xl mb-6">🔍</div>
                   <h2 className="text-2xl font-medium mb-3">
-                    No Matches Found
+                    {t('images.noMatchesFound')}
                   </h2>
                   <p className="text-gray-500">
-                    Try adjusting your search term.
+                    {t('images.tryAdjustingSearch')}
                   </p>
                 </div>
               ) : (
@@ -1702,7 +1794,7 @@
               <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800/90 backdrop-blur-sm p-4 border-t border-gray-700">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                   <span className="text-white font-medium">
-                    {selectedForDeletion.size} image(s) selected
+                    {t('images.imagesSelected', { count: selectedForDeletion.size })}
                   </span>
                   <button
                     onClick={() =>
@@ -1710,7 +1802,7 @@
                     }
                     className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors"
                   >
-                    Delete Selected
+                    {t('actions.deleteSelected')}
                   </button>
                 </div>
               </div>
@@ -1725,151 +1817,202 @@
                   style={{ left: mainContextMenu.x, top: mainContextMenu.y }}
                   onClick={e => e.stopPropagation()}
                 >
-                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setSelectedImage(mainContextMenu.image); closeMainContextMenu() }}>View Image</button>
-                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { openFileLocation(mainContextMenu.image); closeMainContextMenu() }}>Open Location</button>
-                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={async () => { await window.electronAPI.copyImageToClipboard(mainContextMenu.image.fullPath); if (showActionFeedback) alert('Copied!'); closeMainContextMenu() }}>Copy to Clipboard</button>
-                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { handleStarImage(mainContextMenu.image); closeMainContextMenu() }}>Star / Unstar</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { setSelectedImage(mainContextMenu.image); closeMainContextMenu() }}>{t('contextMenu.viewImage')}</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { openFileLocation(mainContextMenu.image); closeMainContextMenu() }}>{t('contextMenu.openLocation')}</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={async () => { await window.electronAPI.copyImageToClipboard(mainContextMenu.image.fullPath); if (showActionFeedback) alert(t('prompts.copied')); closeMainContextMenu() }}>{t('viewer.copyToClipboard')}</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { handleStarImage(mainContextMenu.image); closeMainContextMenu() }}>{t('star.starUnstar')}</button>
                   <div className="border-t border-white/20 my-1"></div>
-                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { handleBatchDelete([mainContextMenu.image.fullPath]); closeMainContextMenu() }}>Delete</button>
+                  <button className="w-full px-4 py-2 text-left text-white hover:bg-white/10 text-sm transition-colors" onClick={() => { handleBatchDelete([mainContextMenu.image.fullPath]); closeMainContextMenu() }}>{t('actions.delete')}</button>
                 </div>
               </div>
             )}
             {showHelp && (
               <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => setShowHelp(false)}>
                 <div className={`p-6 rounded-xl max-w-2xl max-h-[80vh] overflow-y-auto ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} onClick={e => e.stopPropagation()}>
-                  <h2 className="text-xl font-bold mb-4">Keyboard Shortcuts</h2>
+                  <h2 className="text-xl font-bold mb-4">{t('help.title')}</h2>
 
-                  <h3 className="text-md font-semibold mb-2 text-blue-400">Image Viewer</h3>
+                  <h3 className="text-md font-semibold mb-2 text-blue-400">{t('help.imageViewer')}</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.prevImage)}</kbd> / <kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.nextImage)}</kbd> Navigate</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.zoomIn)}</kbd> / <kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.zoomOut)}</kbd> Zoom</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.resetZoom)}</kbd> Reset zoom</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDragMode)}</kbd> Toggle drag mode</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleSlideshow)}</kbd> Slideshow</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.closeModal)}</kbd> Close</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.deleteImage)}</kbd> Delete</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.starImage)}</kbd> Star/Unstar</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.copyToClipboard)}</kbd> Copy to clipboard</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.openLocation)}</kbd> Open location</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.cropImage)}</kbd> Crop</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.resizeImage)}</kbd> Resize</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.prevImage)}</kbd> / <kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.nextImage)}</kbd> {t('help.navigate')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.zoomIn)}</kbd> / <kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.zoomOut)}</kbd> {t('help.zoom')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.resetZoom)}</kbd> {t('viewer.resetZoom')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDragMode)}</kbd> {t(KEYBINDING_LABELS.toggleDragMode)}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleSlideshow)}</kbd> {t('viewer.slideshow')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.closeModal)}</kbd> {t('actions.close')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.deleteImage)}</kbd> {t('actions.delete')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.starImage)}</kbd> {t('star.starUnstar')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.copyToClipboard)}</kbd> {t('viewer.copyToClipboard')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.openLocation)}</kbd> {t('viewer.openFileLocation')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.cropImage)}</kbd> {t('viewer.crop')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.resizeImage)}</kbd> {t('viewer.resize')}</p>
                   </div>
 
-                  <h3 className="text-md font-semibold mb-2 text-green-400">Main Window</h3>
+                  <h3 className="text-md font-semibold mb-2 text-green-400">{t('help.mainWindow')}</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm mb-4">
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">Ctrl+{formatKey(keybindings.openDirectory)}</kbd> Open directory</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">Ctrl+{formatKey(keybindings.newTab)}</kbd> New tab</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">Ctrl+{formatKey(keybindings.closeTab)}</kbd> Close tab</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.viewFavorites)}</kbd> View favorites</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDeleteMode)}</kbd> Delete mode</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDarkMode)}</kbd> Dark mode</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleHistoryPanel)}</kbd> History panel</p>
-                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.openSettings)}</kbd> Settings</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">Ctrl+{formatKey(keybindings.openDirectory)}</kbd> {t('help.openDirectory')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">Ctrl+{formatKey(keybindings.newTab)}</kbd> {t('navigation.newTab')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">Ctrl+{formatKey(keybindings.closeTab)}</kbd> {t('navigation.closeTab')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.viewFavorites)}</kbd> {t('star.viewStarred')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDeleteMode)}</kbd> {t('deleteMode.selectToDelete')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDarkMode)}</kbd> {t('darkMode.toggle')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleHistoryPanel)}</kbd> {t('navigation.historyAndRecent')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.openSettings)}</kbd> {t('settings.title')}</p>
                   </div>
 
-                  <h3 className="text-md font-semibold mb-2 text-yellow-400">Other</h3>
+                  <h3 className="text-md font-semibold mb-2 text-yellow-400">{t('help.other')}</h3>
                   <ul className="text-sm space-y-1 list-disc list-inside">
-                    <li>Drag & drop folders to load</li>
-                    <li>Scroll wheel to zoom in viewer</li>
-                    <li>Mouse back/forward for history</li>
-                    <li>Right-click for context menu</li>
+                    <li>{t('help.dragDropFolders')}</li>
+                    <li>{t('help.scrollWheelZoom')}</li>
+                    <li>{t('help.mouseBackForward')}</li>
+                    <li>{t('help.rightClickMenu')}</li>
                   </ul>
-                  <button onClick={() => setShowHelp(false)} className="mt-4 w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Close</button>
+                  <button onClick={() => setShowHelp(false)} className="mt-4 w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">{t('actions.close')}</button>
                 </div>
               </div>
             )}
             {showSettings && (
-              <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => { setShowSettings(false); setEditingKey(null) }}>
-                <div className={`p-6 rounded-xl max-w-lg w-full mx-4 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} onClick={e => e.stopPropagation()}>
-                  <h2 className="text-xl font-bold mb-4">Settings</h2>
-
-                  <h3 className="text-lg font-semibold mb-3">Behavior</h3>
-                  <div className="flex items-center justify-between py-2 border-b border-gray-600">
-                    <span>Click outside to close viewer</span>
-                    <button
-                      onClick={() => setClickOutsideToClose(v => !v)}
-                      className={`px-3 py-1 rounded ${clickOutsideToClose ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
-                    >
-                      {clickOutsideToClose ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-gray-600">
-                    <span>Confirmation prompts</span>
-                    <button
-                      onClick={() => setConfirmPrompts(v => !v)}
-                      className={`px-3 py-1 rounded ${confirmPrompts ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
-                    >
-                      {confirmPrompts ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b border-gray-600">
-                    <span>Show action feedback (alerts)</span>
-                    <button
-                      onClick={() => setShowActionFeedback(v => !v)}
-                      className={`px-3 py-1 rounded ${showActionFeedback ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
-                    >
-                      {showActionFeedback ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between py-2 mb-4 border-b border-gray-600">
-                    <span>Max image size (vw)</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="50"
-                        max="100"
-                        value={maxImageSize}
-                        onChange={e => setMaxImageSize(parseInt(e.target.value))}
-                        className="w-24"
-                      />
-                      <span className="w-10 text-right">{maxImageSize}%</span>
-                    </div>
-                  </div>
-
-                  <h3 className="text-lg font-semibold mb-3">Keybindings</h3>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {Object.keys(keybindings).map(action => (
-                      <div key={action} className="flex items-center justify-between py-2 border-b border-gray-600">
-                        <span>{KEYBINDING_LABELS[action]}</span>
-                        <button
-                          onClick={() => setEditingKey(action)}
-                          className={`px-3 py-1 rounded ${editingKey === action ? 'bg-blue-500 text-white animate-pulse' : 'bg-gray-600 text-white'}`}
-                          onKeyDown={e => {
-                            if (editingKey === action) {
-                              e.preventDefault()
-                              setKeybindings(prev => ({ ...prev, [action]: e.key }))
-                              setEditingKey(null)
-                            }
-                          }}
-                        >
-                          {editingKey === action ? 'Press key...' : formatKey(keybindings[action])}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={() => { setKeybindings(DEFAULT_KEYBINDINGS); setEditingKey(null) }}
-                      className="flex-1 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500"
-                    >
-                      Reset to Default
-                    </button>
-                    <button
-                      onClick={() => { setShowSettings(false); setEditingKey(null) }}
-                      className="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                    >
-                      Done
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <SettingsModal
+                darkMode={darkMode}
+                showSettings={showSettings}
+                setShowSettings={setShowSettings}
+                clickOutsideToClose={clickOutsideToClose}
+                setClickOutsideToClose={setClickOutsideToClose}
+                confirmPrompts={confirmPrompts}
+                setConfirmPrompts={setConfirmPrompts}
+                showActionFeedback={showActionFeedback}
+                setShowActionFeedback={setShowActionFeedback}
+                maxImageSize={maxImageSize}
+                setMaxImageSize={setMaxImageSize}
+                keybindings={keybindings}
+                setKeybindings={setKeybindings}
+                editingKey={editingKey}
+                setEditingKey={setEditingKey}
+              />
             )}
           </div>
         )
       }
 
+      const SettingsModal = ({
+        darkMode,
+        showSettings,
+        setShowSettings,
+        clickOutsideToClose,
+        setClickOutsideToClose,
+        confirmPrompts,
+        setConfirmPrompts,
+        showActionFeedback,
+        setShowActionFeedback,
+        maxImageSize,
+        setMaxImageSize,
+        keybindings,
+        setKeybindings,
+        editingKey,
+        setEditingKey
+      }) => {
+        const { t, locale, setLocale, availableLocales } = useI18n()
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={() => { setShowSettings(false); setEditingKey(null) }}>
+            <div className={`p-6 rounded-xl max-w-lg w-full mx-4 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} onClick={e => e.stopPropagation()}>
+              <h2 className="text-xl font-bold mb-4">{t('settings.title')}</h2>
+
+              <h3 className="text-lg font-semibold mb-3">{t('settings.behavior')}</h3>
+              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+                <span>{t('settings.language')}</span>
+                <select
+                  value={locale}
+                  onChange={e => setLocale(e.target.value)}
+                  className={`px-3 py-1 rounded ${darkMode ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-900'}`}
+                >
+                  {availableLocales.map(loc => (
+                    <option key={loc} value={loc}>{LOCALE_NAMES[loc] || loc}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+                <span>{t('settings.clickOutsideToClose')}</span>
+                <button
+                  onClick={() => setClickOutsideToClose(v => !v)}
+                  className={`px-3 py-1 rounded ${clickOutsideToClose ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                >
+                  {clickOutsideToClose ? t('settings.on') : t('settings.off')}
+                </button>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+                <span>{t('settings.confirmationPrompts')}</span>
+                <button
+                  onClick={() => setConfirmPrompts(v => !v)}
+                  className={`px-3 py-1 rounded ${confirmPrompts ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                >
+                  {confirmPrompts ? t('settings.on') : t('settings.off')}
+                </button>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-gray-600">
+                <span>{t('settings.showActionFeedback')}</span>
+                <button
+                  onClick={() => setShowActionFeedback(v => !v)}
+                  className={`px-3 py-1 rounded ${showActionFeedback ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}
+                >
+                  {showActionFeedback ? t('settings.on') : t('settings.off')}
+                </button>
+              </div>
+              <div className="flex items-center justify-between py-2 mb-4 border-b border-gray-600">
+                <span>{t('settings.maxImageSize')}</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="50"
+                    max="100"
+                    value={maxImageSize}
+                    onChange={e => setMaxImageSize(parseInt(e.target.value))}
+                    className="w-24"
+                  />
+                  <span className="w-10 text-right">{maxImageSize}%</span>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-semibold mb-3">{t('settings.keybindings')}</h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {Object.keys(keybindings).map(action => (
+                  <div key={action} className="flex items-center justify-between py-2 border-b border-gray-600">
+                    <span>{t(KEYBINDING_LABELS[action])}</span>
+                    <button
+                      onClick={() => setEditingKey(action)}
+                      className={`px-3 py-1 rounded ${editingKey === action ? 'bg-blue-500 text-white animate-pulse' : 'bg-gray-600 text-white'}`}
+                      onKeyDown={e => {
+                        if (editingKey === action) {
+                          e.preventDefault()
+                          setKeybindings(prev => ({ ...prev, [action]: e.key }))
+                          setEditingKey(null)
+                        }
+                      }}
+                    >
+                      {editingKey === action ? '...' : formatKey(keybindings[action])}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => { setKeybindings(DEFAULT_KEYBINDINGS); setEditingKey(null) }}
+                  className="flex-1 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500"
+                >
+                  {t('actions.resetToDefault')}
+                </button>
+                <button
+                  onClick={() => { setShowSettings(false); setEditingKey(null) }}
+                  className="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                >
+                  {t('actions.done')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
       window.path = { basename: filepath => filepath.split(/[\\/]/).pop() }
-      ReactDOM.render(<ImageViewerApp />, document.getElementById('root'))
+      ReactDOM.render(<I18nProvider><ImageViewerApp /></I18nProvider>, document.getElementById('root'))
     </script>
   </body>
 </html>
