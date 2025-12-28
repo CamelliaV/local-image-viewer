@@ -1,7 +1,7 @@
 # Maintainer: CamelliaV
 pkgname=hanasato
 pkgver=1.0.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Hanasato - Fast local image viewer with Pinterest-style layout - optimized for Zen4 + NVIDIA Blackwell"
 arch=('x86_64')
 url="https://github.com/camelliav/hanasato"

@@ -101,6 +101,7 @@
     "showActionFeedback": "显示操作反馈（提示框）",
     "maxImageSize": "最大图片尺寸 (vw)",
     "retainImages": "保留已加载图片（更流畅滚动）",
+    "performanceMode": "性能模式（激进预加载）",
     "keybindings": "快捷键",
     "on": "开",
     "off": "关",

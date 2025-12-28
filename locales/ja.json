@@ -101,6 +101,7 @@
     "showActionFeedback": "操作フィードバックを表示",
     "maxImageSize": "最大画像サイズ (vw)",
     "retainImages": "読み込み済み画像を保持（スムーズスクロール）",
+    "performanceMode": "パフォーマンスモード（積極的プリロード）",
     "keybindings": "キーバインド",
     "on": "オン",
     "off": "オフ",

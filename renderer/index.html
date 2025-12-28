@@ -327,6 +327,126 @@
           input: 'bg-neutral-800 border-neutral-700 text-white placeholder-neutral-500',
           button: 'bg-neutral-800 hover:bg-neutral-700',
           gradient: 'from-neutral-600 to-neutral-400'
+        },
+        arctic: {
+          name: 'Arctic',
+          bg: 'bg-sky-50',
+          bgSecondary: 'bg-white',
+          text: 'text-slate-800',
+          textSecondary: 'text-sky-600',
+          border: 'border-sky-200',
+          card: 'bg-white',
+          accent: 'bg-sky-500 hover:bg-sky-600',
+          accentText: 'text-sky-500',
+          header: 'bg-white/95',
+          input: 'bg-white border-sky-300 text-slate-800 placeholder-sky-400',
+          button: 'bg-sky-100 hover:bg-sky-200',
+          gradient: 'from-sky-400 to-cyan-300'
+        },
+        copper: {
+          name: 'Copper',
+          bg: 'bg-stone-950',
+          bgSecondary: 'bg-stone-900',
+          text: 'text-amber-50',
+          textSecondary: 'text-amber-500',
+          border: 'border-stone-800',
+          card: 'bg-stone-900',
+          accent: 'bg-amber-600 hover:bg-amber-700',
+          accentText: 'text-amber-400',
+          header: 'bg-stone-900/95',
+          input: 'bg-stone-800 border-stone-700 text-white placeholder-stone-500',
+          button: 'bg-stone-800 hover:bg-stone-700',
+          gradient: 'from-amber-600 to-orange-700'
+        },
+        mint: {
+          name: 'Mint',
+          bg: 'bg-green-50',
+          bgSecondary: 'bg-white',
+          text: 'text-gray-800',
+          textSecondary: 'text-teal-600',
+          border: 'border-green-200',
+          card: 'bg-white',
+          accent: 'bg-teal-500 hover:bg-teal-600',
+          accentText: 'text-teal-500',
+          header: 'bg-white/95',
+          input: 'bg-white border-green-300 text-gray-800 placeholder-teal-400',
+          button: 'bg-green-100 hover:bg-green-200',
+          gradient: 'from-teal-400 to-green-400'
+        },
+        crimson: {
+          name: 'Crimson',
+          bg: 'bg-red-950',
+          bgSecondary: 'bg-red-900',
+          text: 'text-red-50',
+          textSecondary: 'text-red-400',
+          border: 'border-red-800',
+          card: 'bg-red-900',
+          accent: 'bg-red-600 hover:bg-red-500',
+          accentText: 'text-red-400',
+          header: 'bg-red-900/95',
+          input: 'bg-red-800 border-red-700 text-white placeholder-red-500',
+          button: 'bg-red-800 hover:bg-red-700',
+          gradient: 'from-red-600 to-rose-600'
+        },
+        sand: {
+          name: 'Sand',
+          bg: 'bg-amber-50',
+          bgSecondary: 'bg-white',
+          text: 'text-stone-800',
+          textSecondary: 'text-amber-700',
+          border: 'border-amber-200',
+          card: 'bg-white',
+          accent: 'bg-amber-500 hover:bg-amber-600',
+          accentText: 'text-amber-600',
+          header: 'bg-white/95',
+          input: 'bg-white border-amber-300 text-stone-800 placeholder-amber-400',
+          button: 'bg-amber-100 hover:bg-amber-200',
+          gradient: 'from-amber-400 to-yellow-500'
+        },
+        cyberpunk: {
+          name: 'Cyberpunk',
+          bg: 'bg-zinc-950',
+          bgSecondary: 'bg-zinc-900',
+          text: 'text-yellow-300',
+          textSecondary: 'text-yellow-500',
+          border: 'border-yellow-900',
+          card: 'bg-zinc-900',
+          accent: 'bg-yellow-500 hover:bg-yellow-400',
+          accentText: 'text-yellow-400',
+          header: 'bg-zinc-900/95',
+          input: 'bg-zinc-800 border-yellow-800 text-yellow-100 placeholder-zinc-500',
+          button: 'bg-zinc-800 hover:bg-zinc-700',
+          gradient: 'from-yellow-400 to-lime-400'
+        },
+        mocha: {
+          name: 'Mocha',
+          bg: 'bg-amber-950',
+          bgSecondary: 'bg-amber-900',
+          text: 'text-orange-50',
+          textSecondary: 'text-orange-300',
+          border: 'border-amber-800',
+          card: 'bg-amber-900',
+          accent: 'bg-orange-600 hover:bg-orange-500',
+          accentText: 'text-orange-300',
+          header: 'bg-amber-900/95',
+          input: 'bg-amber-800 border-amber-700 text-white placeholder-amber-500',
+          button: 'bg-amber-800 hover:bg-amber-700',
+          gradient: 'from-orange-500 to-amber-600'
+        },
+        aurora: {
+          name: 'Aurora',
+          bg: 'bg-slate-950',
+          bgSecondary: 'bg-slate-900',
+          text: 'text-teal-50',
+          textSecondary: 'text-teal-400',
+          border: 'border-slate-800',
+          card: 'bg-slate-900',
+          accent: 'bg-teal-500 hover:bg-teal-400',
+          accentText: 'text-teal-400',
+          header: 'bg-slate-900/95',
+          input: 'bg-slate-800 border-slate-700 text-white placeholder-slate-500',
+          button: 'bg-slate-800 hover:bg-slate-700',
+          gradient: 'from-teal-400 to-violet-500'
         }
       }
 
@@ -1989,6 +2109,9 @@
         const [retainImages, setRetainImages] = useState(
           () => localStorage.getItem('retainImages') === 'true'
         )
+        const [performanceMode, setPerformanceMode] = useState(
+          () => localStorage.getItem('performanceMode') !== 'false'
+        )
         const [showMosaicMode, setShowMosaicMode] = useState(false)
         const [mosaicAnimation, setMosaicAnimation] = useState(
           () => localStorage.getItem('mosaicAnimation') !== 'false'
@@ -2103,6 +2226,10 @@
         useEffect(() => {
           localStorage.setItem('retainImages', retainImages.toString())
         }, [retainImages])
+
+        useEffect(() => {
+          localStorage.setItem('performanceMode', performanceMode.toString())
+        }, [performanceMode])
 
         useEffect(() => {
           localStorage.setItem('mosaicAnimation', mosaicAnimation.toString())
@@ -2257,30 +2384,74 @@
         }, [selectedImage, keybindings, handleDirSelect, viewFavorites, tabs, activeTabId])
 
         useEffect(() => {
-          setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, displayedImages: filteredImages.slice(0, BATCH_SIZE) } : t))
+          // Performance mode: load much larger initial batch (5x)
+          const initialBatch = performanceMode ? BATCH_SIZE * 5 : BATCH_SIZE
+          setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, displayedImages: filteredImages.slice(0, initialBatch) } : t))
           if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollTop = 0
           }
-        }, [filteredImages, activeTabId])
+          // Performance mode: aggressively preload multiple batches ahead
+          if (performanceMode && filteredImages.length > initialBatch) {
+            // Preload next 3 batches (300 images) in background
+            const preloadEnd = Math.min(initialBatch + BATCH_SIZE * 15, filteredImages.length)
+            let preloadIndex = initialBatch
+            const preloadChunk = () => {
+              const chunkEnd = Math.min(preloadIndex + 20, preloadEnd)
+              for (let i = preloadIndex; i < chunkEnd; i++) {
+                const img = new Image()
+                img.src = `local-image://${encodeURIComponent(filteredImages[i].fullPath)}`
+              }
+              preloadIndex = chunkEnd
+              if (preloadIndex < preloadEnd) {
+                requestIdleCallback ? requestIdleCallback(preloadChunk) : setTimeout(preloadChunk, 10)
+              }
+            }
+            preloadChunk()
+          }
+        }, [filteredImages, activeTabId, performanceMode])
 
         const loadMoreImages = useCallback(() => {
           if (loadingMore || !hasMore) return
           setLoadingMore(true)
+          // Performance mode: instant loading with much larger batches (5x)
+          const batchSize = performanceMode ? BATCH_SIZE * 5 : BATCH_SIZE
+          const delay = performanceMode ? 0 : 300
           setTimeout(() => {
             const nextBatch = filteredImages.slice(
               loadedCount,
-              loadedCount + BATCH_SIZE
+              loadedCount + batchSize
             )
             setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, displayedImages: [...t.displayedImages, ...nextBatch] } : t))
             setLoadingMore(false)
-          }, 300)
-        }, [filteredImages, loadedCount, loadingMore, hasMore, activeTabId])
+
+            // Performance mode: aggressively preload multiple batches ahead
+            if (performanceMode) {
+              const preloadStart = loadedCount + batchSize
+              const preloadEnd = Math.min(preloadStart + BATCH_SIZE * 10, filteredImages.length)
+              let preloadIndex = preloadStart
+              const preloadChunk = () => {
+                const chunkEnd = Math.min(preloadIndex + 20, preloadEnd)
+                for (let i = preloadIndex; i < chunkEnd; i++) {
+                  const img = new Image()
+                  img.src = `local-image://${encodeURIComponent(filteredImages[i].fullPath)}`
+                }
+                preloadIndex = chunkEnd
+                if (preloadIndex < preloadEnd) {
+                  requestIdleCallback ? requestIdleCallback(preloadChunk) : setTimeout(preloadChunk, 10)
+                }
+              }
+              if (preloadStart < filteredImages.length) preloadChunk()
+            }
+          }, delay)
+        }, [filteredImages, loadedCount, loadingMore, hasMore, activeTabId, performanceMode])
 
         useEffect(() => {
           const scrollContainer = scrollContainerRef.current
           if (!scrollContainer || !hasMore) return
 
           // IntersectionObserver for infinite scroll
+          // Performance mode: very large rootMargin for much earlier preloading
+          const rootMargin = performanceMode ? '3000px' : '600px'
           const observer = new IntersectionObserver(
             entries => {
               const [entry] = entries
@@ -2288,7 +2459,7 @@
                 loadMoreImages()
               }
             },
-            { root: scrollContainer, rootMargin: '600px', threshold: 0.1 }
+            { root: scrollContainer, rootMargin, threshold: 0.1 }
           )
 
           const observerTarget = loadMoreObserverRef.current
@@ -2297,10 +2468,12 @@
           }
 
           // Fallback scroll handler for cases where IntersectionObserver doesn't trigger
+          // Performance mode: trigger much earlier
+          const scrollThreshold = performanceMode ? 3000 : 800
           const handleScroll = () => {
             if (loadingMore || !hasMore) return
             const { scrollTop, scrollHeight, clientHeight } = scrollContainer
-            if (scrollTop + clientHeight >= scrollHeight - 800) {
+            if (scrollTop + clientHeight >= scrollHeight - scrollThreshold) {
               loadMoreImages()
             }
           }
@@ -2313,7 +2486,53 @@
             }
             scrollContainer.removeEventListener('scroll', handleScroll)
           }
-        }, [loadMoreImages, hasMore, loadingMore, selectedDir, displayedImages.length])
+        }, [loadMoreImages, hasMore, loadingMore, selectedDir, displayedImages.length, performanceMode])
+
+        // Performance mode: continuous scroll-based preloader
+        // Preloads images ahead of current scroll position
+        useEffect(() => {
+          if (!performanceMode) return
+          const scrollContainer = scrollContainerRef.current
+          if (!scrollContainer || filteredImages.length === 0) return
+
+          let preloadedUpTo = 0
+          const preloadAhead = () => {
+            const { scrollTop, clientHeight } = scrollContainer
+            // Estimate which images are visible based on scroll position
+            // Assuming average card height of ~250px and columnCount columns
+            const estimatedVisibleStart = Math.floor(scrollTop / 250) * columnCount
+            const estimatedVisibleEnd = Math.ceil((scrollTop + clientHeight) / 250) * columnCount
+            // Preload 200 images ahead of current view
+            const preloadTarget = Math.min(estimatedVisibleEnd + 200, filteredImages.length)
+
+            if (preloadTarget > preloadedUpTo) {
+              for (let i = preloadedUpTo; i < preloadTarget; i++) {
+                const img = new Image()
+                img.src = `local-image://${encodeURIComponent(filteredImages[i].fullPath)}`
+              }
+              preloadedUpTo = preloadTarget
+            }
+          }
+
+          // Initial preload
+          preloadAhead()
+
+          // Preload on scroll (throttled)
+          let scrollTimeout
+          const handleScrollPreload = () => {
+            if (scrollTimeout) return
+            scrollTimeout = setTimeout(() => {
+              preloadAhead()
+              scrollTimeout = null
+            }, 100)
+          }
+
+          scrollContainer.addEventListener('scroll', handleScrollPreload, { passive: true })
+          return () => {
+            scrollContainer.removeEventListener('scroll', handleScrollPreload)
+            if (scrollTimeout) clearTimeout(scrollTimeout)
+          }
+        }, [performanceMode, filteredImages, columnCount])
 
         const handleBatchDelete = useCallback(
           async pathsToDelete => {
@@ -2806,7 +3025,7 @@
                   showStarButton={showStarButton}
                   onContextMenu={handleMainContextMenu}
                   starVersion={starVersion}
-                  retainImages={retainImages}
+                  retainImages={performanceMode || retainImages}
                 />
               )}
             </main>
@@ -2946,6 +3165,8 @@
                 setEditingKey={setEditingKey}
                 retainImages={retainImages}
                 setRetainImages={setRetainImages}
+                performanceMode={performanceMode}
+                setPerformanceMode={setPerformanceMode}
                 mosaicAnimation={mosaicAnimation}
                 setMosaicAnimation={setMosaicAnimation}
                 mosaicAnimationType={mosaicAnimationType}
@@ -2986,6 +3207,8 @@
         setEditingKey,
         retainImages,
         setRetainImages,
+        performanceMode,
+        setPerformanceMode,
         mosaicAnimation,
         setMosaicAnimation,
         mosaicAnimationType,
@@ -3080,13 +3303,22 @@
                   <span className="w-10 text-right">{maxImageSize}%</span>
                 </div>
               </div>
-              <div className={`flex items-center justify-between py-2 mb-4 border-b ${currentTheme.border}`}>
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
                 <span>{t('settings.retainImages')}</span>
                 <button
                   onClick={() => setRetainImages(v => !v)}
                   className={`px-3 py-1 rounded ${retainImages ? 'bg-emerald-500 text-white' : currentTheme.button}`}
                 >
                   {retainImages ? t('settings.on') : t('settings.off')}
+                </button>
+              </div>
+              <div className={`flex items-center justify-between py-2 mb-4 border-b ${currentTheme.border}`}>
+                <span>{t('settings.performanceMode')}</span>
+                <button
+                  onClick={() => setPerformanceMode(v => !v)}
+                  className={`px-3 py-1 rounded ${performanceMode ? 'bg-emerald-500 text-white' : currentTheme.button}`}
+                >
+                  {performanceMode ? t('settings.on') : t('settings.off')}
                 </button>
               </div>
               <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>

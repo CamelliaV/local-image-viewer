@@ -101,6 +101,7 @@
     "showActionFeedback": "Show action feedback (alerts)",
     "maxImageSize": "Max image size (vw)",
     "retainImages": "Retain loaded images (smoother scroll)",
+    "performanceMode": "Performance mode (aggressive preloading)",
     "keybindings": "Keybindings",
     "on": "ON",
     "off": "OFF",
