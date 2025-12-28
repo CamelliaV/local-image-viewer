@@ -62,7 +62,9 @@
     "resize": "调整大小",
     "rename": "重命名",
     "modified": "修改时间",
-    "of": "/"
+    "of": "/",
+    "showMetadata": "显示元数据",
+    "hideMetadata": "隐藏元数据"
   },
   "deleteMode": {
     "selectToDelete": "选择删除",
@@ -140,7 +142,13 @@
     "toggleDarkMode": "切换深色模式",
     "openSettings": "打开设置",
     "openHelp": "打开帮助",
-    "toggleHistoryPanel": "切换历史面板"
+    "toggleHistoryPanel": "切换历史面板",
+    "toggleMetadata": "切换元数据",
+    "toggleMosaicMode": "切换马赛克模式",
+    "mosaicNextWall": "马赛克: 下一墙",
+    "mosaicPrevWall": "马赛克: 上一墙",
+    "mosaicResetTileScale": "马赛克: 重置瓷砖缩放",
+    "mosaicToggleDrawer": "马赛克: 切换控制面板"
   },
   "prompts": {
     "enterNewFilename": "输入新文件名：",
@@ -158,5 +166,31 @@
   },
   "darkMode": {
     "toggle": "切换深色模式"
+  },
+  "mosaic": {
+    "title": "马赛克模式",
+    "wall": "墙",
+    "of": "/",
+    "noImages": "没有可显示的图片",
+    "enableAnimation": "启用马赛克动画",
+    "exitHint": "按 {key} 或 Escape 退出",
+    "tileSize": "瓷砖大小",
+    "defaultTileSize": "默认瓷砖大小",
+    "animationType": "动画类型",
+    "animationFade": "淡入淡出",
+    "animationSlide": "滑动",
+    "animationDuration": "动画时长",
+    "wheelHint": "滚动切换墙，悬停+滚动缩放瓷砖",
+    "loopWalls": "循环墙（从最后到第一）",
+    "showControls": "显示控制",
+    "hideControls": "隐藏控制",
+    "toggleDrawer": "切换控制面板",
+    "controlMode": "控制模式",
+    "imageCount": "图片数量",
+    "imagesPerWall": "每墙图片数",
+    "estimated": "预估",
+    "loaded": "已加载",
+    "fixedGrid": "固定网格",
+    "adaptiveGrid": "自适应"
   }
 }

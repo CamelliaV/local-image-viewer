@@ -62,7 +62,9 @@
     "resize": "リサイズ",
     "rename": "名前変更",
     "modified": "更新日時",
-    "of": "/"
+    "of": "/",
+    "showMetadata": "メタデータを表示",
+    "hideMetadata": "メタデータを隠す"
   },
   "deleteMode": {
     "selectToDelete": "削除する画像を選択",
@@ -140,7 +142,13 @@
     "toggleDarkMode": "ダークモード切替",
     "openSettings": "設定を開く",
     "openHelp": "ヘルプを開く",
-    "toggleHistoryPanel": "履歴パネル切替"
+    "toggleHistoryPanel": "履歴パネル切替",
+    "toggleMetadata": "メタデータ切替",
+    "toggleMosaicMode": "モザイクモード切替",
+    "mosaicNextWall": "モザイク: 次の壁",
+    "mosaicPrevWall": "モザイク: 前の壁",
+    "mosaicResetTileScale": "モザイク: タイル拡大リセット",
+    "mosaicToggleDrawer": "モザイク: コントロール切替"
   },
   "prompts": {
     "enterNewFilename": "新しいファイル名を入力:",
@@ -158,5 +166,31 @@
   },
   "darkMode": {
     "toggle": "ダークモード切替"
+  },
+  "mosaic": {
+    "title": "モザイクモード",
+    "wall": "壁",
+    "of": "/",
+    "noImages": "表示する画像がありません",
+    "enableAnimation": "モザイクアニメーションを有効化",
+    "exitHint": "{key} または Escape で終了",
+    "tileSize": "タイルサイズ",
+    "defaultTileSize": "デフォルトタイルサイズ",
+    "animationType": "アニメーションタイプ",
+    "animationFade": "フェード",
+    "animationSlide": "スライド",
+    "animationDuration": "アニメーション時間",
+    "wheelHint": "スクロールで壁を切替、ホバー+スクロールでタイルをズーム",
+    "loopWalls": "壁をループ（最後から最初へ）",
+    "showControls": "コントロールを表示",
+    "hideControls": "コントロールを隠す",
+    "toggleDrawer": "コントロール切替",
+    "controlMode": "制御モード",
+    "imageCount": "画像数",
+    "imagesPerWall": "壁あたりの画像数",
+    "estimated": "推定",
+    "loaded": "読込済",
+    "fixedGrid": "固定グリッド",
+    "adaptiveGrid": "アダプティブ"
   }
 }

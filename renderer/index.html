@@ -99,6 +99,32 @@
         justify-content: center;
         margin: 20px 0;
       }
+      /* Mosaic Mode Animations */
+      @keyframes mosaicFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes mosaicFadeOut {
+        from { opacity: 1; transform: scale(1); }
+        to { opacity: 0; transform: scale(0.95); }
+      }
+      @keyframes mosaicSlideLeft {
+        from { opacity: 0; transform: translateX(100%); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes mosaicSlideRight {
+        from { opacity: 0; transform: translateX(-100%); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+      @keyframes mosaicTileIn {
+        from { opacity: 0; transform: scale(0.8) rotate(-5deg); }
+        to { opacity: 1; transform: scale(1) rotate(0deg); }
+      }
+      .mosaic-enter { animation: mosaicFadeIn 0.4s ease-out forwards; }
+      .mosaic-exit { animation: mosaicFadeOut 0.3s ease-in forwards; }
+      .mosaic-slide-left { animation: mosaicSlideLeft 0.5s ease-out forwards; }
+      .mosaic-slide-right { animation: mosaicSlideRight 0.5s ease-out forwards; }
+      .mosaic-tile { animation: mosaicTileIn 0.4s ease-out forwards; }
     </style>
   </head>
   <body>
@@ -318,7 +344,7 @@
         toggleSlideshow: ' ',
         deleteImage: 'Delete',
         starImage: 's',
-        copyToClipboard: 'c',
+        copyToClipboard: 'y',
         openLocation: 'l',
         // Edit modes
         cropImage: 'x',
@@ -332,7 +358,14 @@
         toggleDarkMode: 'm',
         openSettings: ',',
         openHelp: '?',
-        toggleHistoryPanel: 'h'
+        toggleHistoryPanel: 'h',
+        toggleMetadata: 'c',
+        // Mosaic Mode
+        toggleMosaicMode: 'g',
+        mosaicNextWall: 'ArrowRight',
+        mosaicPrevWall: 'ArrowLeft',
+        mosaicResetTileScale: 'r',
+        mosaicToggleDrawer: 'c'
       }
 
       const KEYBINDING_LABELS = {
@@ -358,7 +391,13 @@
         toggleDarkMode: 'keybindingLabels.toggleDarkMode',
         openSettings: 'keybindingLabels.openSettings',
         openHelp: 'keybindingLabels.openHelp',
-        toggleHistoryPanel: 'keybindingLabels.toggleHistoryPanel'
+        toggleHistoryPanel: 'keybindingLabels.toggleHistoryPanel',
+        toggleMetadata: 'keybindingLabels.toggleMetadata',
+        toggleMosaicMode: 'keybindingLabels.toggleMosaicMode',
+        mosaicNextWall: 'keybindingLabels.mosaicNextWall',
+        mosaicPrevWall: 'keybindingLabels.mosaicPrevWall',
+        mosaicResetTileScale: 'keybindingLabels.mosaicResetTileScale',
+        mosaicToggleDrawer: 'keybindingLabels.mosaicToggleDrawer'
       }
 
       const formatKey = key => key === ' ' ? 'Space' : key
@@ -573,7 +612,8 @@
           keybindings,
           clickOutsideToClose,
           showActionFeedback,
-          maxImageSize
+          maxImageSize,
+          fromMosaicMode
         }) => {
           const { t } = useI18n()
           const [zoom, setZoom] = useState(1)
@@ -590,8 +630,14 @@
           const [resizeW, setResizeW] = useState('')
           const [resizeH, setResizeH] = useState('')
           const [contextMenu, setContextMenu] = useState(null)
+          const [showMetadata, setShowMetadata] = useState(() => localStorage.getItem('imageViewerShowMetadata') !== 'false')
           const imageRef = useRef(null)
           const canvasRef = useRef(null)
+
+          // Save metadata preference
+          useEffect(() => {
+            localStorage.setItem('imageViewerShowMetadata', showMetadata.toString())
+          }, [showMetadata])
 
           useEffect(() => {
             setZoom(1)
@@ -758,7 +804,7 @@
               else if (key === keybindings.toggleSlideshow) { e.preventDefault(); setSlideshow(s => !s) }
               else if (key === keybindings.deleteImage) { onDelete([selectedImage.fullPath]) }
               else if (key === keybindings.starImage || key === 'S') { onStar(selectedImage) }
-              else if (key === keybindings.copyToClipboard || key === 'C') {
+              else if (key === keybindings.copyToClipboard) {
                 try {
                   await window.electronAPI.copyImageToClipboard(selectedImage.fullPath)
                   if (showActionFeedback) alert(t('prompts.copied'))
@@ -767,6 +813,7 @@
               else if (key === keybindings.openLocation || key === 'L') { onOpenLocation(selectedImage) }
               else if (key === keybindings.cropImage || key === 'X') { setEditMode(editMode === 'crop' ? null : 'crop'); setCropArea(null) }
               else if (key === keybindings.resizeImage || key === 'R') { setEditMode(editMode === 'resize' ? null : 'resize'); if (dimensions) { setResizeW(String(dimensions.w)); setResizeH(String(dimensions.h)) } }
+              else if (key === keybindings.toggleMetadata || key === keybindings.mosaicToggleDrawer) { setShowMetadata(v => !v) }
             }
             document.addEventListener('keydown', handleKeyPress)
             return () => document.removeEventListener('keydown', handleKeyPress)
@@ -1002,7 +1049,20 @@
                     →
                   </button>
                 )}
-                <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-70 text-white p-4 rounded-lg backdrop-blur-sm">
+                {/* Metadata toggle button */}
+                <button
+                  onClick={() => setShowMetadata(v => !v)}
+                  className={`absolute bottom-4 right-4 ${showMetadata ? 'bg-white/30' : 'bg-black/60'} text-white p-2 rounded-full hover:bg-white/40 transition-all z-10`}
+                  title={showMetadata ? t('viewer.hideMetadata') : t('viewer.showMetadata')}
+                >
+                  {showMetadata ? '▼' : '▲'}
+                </button>
+                {/* Metadata panel */}
+                <div
+                  className={`absolute bottom-4 left-4 right-16 bg-black bg-opacity-70 text-white p-4 rounded-lg backdrop-blur-sm transition-all duration-200 ${
+                    showMetadata ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+                  }`}
+                >
                   <div className="font-medium text-lg mb-2">
                     {selectedImage.name}
                   </div>
@@ -1026,6 +1086,818 @@
           )
         }
       )
+
+      // Mosaic Mode Component - Smart wall-filling gallery view
+      const MosaicMode = React.memo(({
+        images,
+        onClose,
+        onImageClick,
+        keybindings,
+        enableAnimation,
+        mosaicAnimationType,
+        mosaicAnimationDuration,
+        mosaicTileSize,
+        setMosaicTileSize,
+        mosaicImageCount,
+        setMosaicImageCount,
+        mosaicControlMode,
+        currentWall,
+        setCurrentWall,
+        mosaicLoopWalls,
+        selectedImage
+      }) => {
+        const { t } = useI18n()
+        const [displayedWall, setDisplayedWall] = useState(currentWall)
+        const [nextWall, setNextWall] = useState(null)
+        const [isTransitioning, setIsTransitioning] = useState(false)
+        const [transitionPhase, setTransitionPhase] = useState(null) // 'out' | 'in'
+        const [isExiting, setIsExiting] = useState(false)
+        const [isEntering, setIsEntering] = useState(true)
+        const containerRef = useRef(null)
+        const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+        const [hoveredTile, setHoveredTile] = useState(null) // Track which tile is hovered
+        const [tileScales, setTileScales] = useState({}) // Individual tile scale factors
+        const [drawerOpen, setDrawerOpen] = useState(true) // Drawer state
+        const [imageDimensions, setImageDimensions] = useState({}) // Track loaded image dimensions
+        const [layoutMode, setLayoutMode] = useState(() => localStorage.getItem('mosaicLayoutMode') || 'fixed') // 'fixed' or 'adaptive'
+
+        // Save layout mode preference
+        useEffect(() => {
+          localStorage.setItem('mosaicLayoutMode', layoutMode)
+        }, [layoutMode])
+
+        // Calculate container size - use window size as fallback
+        useEffect(() => {
+          const updateSize = () => {
+            setContainerSize({
+              width: window.innerWidth,
+              height: window.innerHeight
+            })
+          }
+          updateSize()
+          window.addEventListener('resize', updateSize)
+          return () => window.removeEventListener('resize', updateSize)
+        }, [])
+
+        // Entry animation
+        useEffect(() => {
+          if (enableAnimation) {
+            requestAnimationFrame(() => {
+              setIsEntering(false)
+            })
+          } else {
+            setIsEntering(false)
+          }
+        }, [enableAnimation])
+
+        // Lazy load image dimensions in background - don't block rendering
+        useEffect(() => {
+          let cancelled = false
+
+          // Load images in small batches to avoid overwhelming the browser
+          const loadBatch = async (startIdx, batchSize = 10) => {
+            if (cancelled || startIdx >= images.length) return
+
+            const batch = images.slice(startIdx, startIdx + batchSize)
+            const loadedDims = {}
+
+            await Promise.all(batch.map(img => {
+              return new Promise((resolve) => {
+                // Skip if already loaded
+                if (imageDimensions[img.fullPath]) {
+                  resolve()
+                  return
+                }
+
+                const image = new Image()
+                const timeout = setTimeout(() => {
+                  loadedDims[img.fullPath] = { width: 1600, height: 900 }
+                  resolve()
+                }, 3000)
+
+                image.onload = () => {
+                  clearTimeout(timeout)
+                  loadedDims[img.fullPath] = { width: image.naturalWidth, height: image.naturalHeight }
+                  resolve()
+                }
+                image.onerror = () => {
+                  clearTimeout(timeout)
+                  loadedDims[img.fullPath] = { width: 1600, height: 900 }
+                  resolve()
+                }
+                image.src = img.url
+              })
+            }))
+
+            if (!cancelled && Object.keys(loadedDims).length > 0) {
+              setImageDimensions(prev => ({ ...prev, ...loadedDims }))
+            }
+
+            // Continue with next batch
+            if (!cancelled) {
+              setTimeout(() => loadBatch(startIdx + batchSize), 50)
+            }
+          }
+
+          if (images.length > 0) {
+            loadBatch(0)
+          }
+
+          return () => { cancelled = true }
+        }, [images])
+
+        // Creative justified gallery layout algorithm
+        const walls = useMemo(() => {
+          if (!containerSize.width || !containerSize.height || images.length === 0) return []
+
+          const wallWidth = containerSize.width - 32 // padding
+          const drawerHeight = drawerOpen ? 140 : 0 // Completely hidden when collapsed
+          const wallHeight = containerSize.height - drawerHeight - 16 // space for controls
+          const gap = 4
+
+          // Calculate targetRowHeight based on control mode
+          let targetRowHeight
+          if (mosaicControlMode === 'imageCount') {
+            // Estimate row height to achieve desired image count per wall
+            // Assuming average aspect ratio of 1.5 and roughly square-ish layout
+            const avgAspect = 1.5
+            const wallArea = wallWidth * wallHeight
+            const targetTileArea = wallArea / mosaicImageCount
+            // For justified layout, row height determines density
+            // Smaller row height = more images per wall
+            targetRowHeight = Math.sqrt(targetTileArea / avgAspect)
+            // Clamp to reasonable range
+            targetRowHeight = Math.max(80, Math.min(400, targetRowHeight))
+          } else {
+            targetRowHeight = mosaicTileSize
+          }
+
+          // Sanity check
+          if (wallWidth <= 0 || wallHeight <= 0 || targetRowHeight <= 0) return []
+
+          const result = []
+          let imageIndex = 0
+
+          // Get aspect ratio for an image
+          const getAspectRatio = (img) => {
+            const dims = imageDimensions[img.fullPath]
+            if (dims && dims.width && dims.height) {
+              return dims.width / dims.height
+            }
+            // Default aspect ratio
+            return 1.5
+          }
+
+          if (layoutMode === 'fixed') {
+            // Fixed grid layout - tiles fill the entire screen
+            let cols, rows, imagesPerWall
+
+            if (mosaicControlMode === 'imageCount') {
+              // Calculate grid based on desired image count per wall
+              imagesPerWall = mosaicImageCount
+              // Find optimal cols/rows ratio based on screen aspect ratio
+              const screenAspect = wallWidth / wallHeight
+              // Try to make tiles roughly square
+              cols = Math.max(1, Math.round(Math.sqrt(imagesPerWall * screenAspect)))
+              rows = Math.max(1, Math.ceil(imagesPerWall / cols))
+              // Adjust cols if we have too many rows
+              while (cols * rows < imagesPerWall && cols < imagesPerWall) {
+                cols++
+                rows = Math.ceil(imagesPerWall / cols)
+              }
+            } else {
+              // Calculate how many tiles fit at the target size
+              const targetSize = mosaicTileSize
+              cols = Math.max(1, Math.floor((wallWidth + gap) / (targetSize + gap)))
+              rows = Math.max(1, Math.floor((wallHeight + gap) / (targetSize + gap)))
+              imagesPerWall = cols * rows
+            }
+
+            // Calculate tile size to fill the entire available space
+            const tileWidth = (wallWidth - (cols - 1) * gap) / cols
+            const tileHeight = (wallHeight - (rows - 1) * gap) / rows
+
+            while (imageIndex < images.length) {
+              const layout = []
+              const wallImages = images.slice(imageIndex, imageIndex + imagesPerWall)
+
+              wallImages.forEach((img, idx) => {
+                const col = idx % cols
+                const row = Math.floor(idx / cols)
+                layout.push({
+                  image: img,
+                  x: col * (tileWidth + gap),
+                  y: row * (tileHeight + gap),
+                  width: tileWidth,
+                  height: tileHeight,
+                  delay: idx * 0.01,
+                  aspectRatio: getAspectRatio(img)
+                })
+              })
+
+              if (layout.length > 0) {
+                result.push({ layout })
+              }
+              imageIndex += imagesPerWall
+            }
+          } else {
+            // Adaptive justified layout
+            // In imageCount mode, limit images per wall
+            const maxImagesPerWall = mosaicControlMode === 'imageCount' ? mosaicImageCount : Infinity
+
+            while (imageIndex < images.length) {
+              const layout = []
+              let rowY = 0
+              let tileIndex = 0
+              let wallImageCount = 0
+
+              // Fill the wall with rows
+              while (rowY + targetRowHeight * 0.5 <= wallHeight && imageIndex < images.length && wallImageCount < maxImagesPerWall) {
+                // Collect images for this row
+                const rowImages = []
+                let rowAspectSum = 0
+                const remainingForWall = maxImagesPerWall - wallImageCount
+
+                // Add images until the row is full
+                while (imageIndex < images.length && rowImages.length < 8 && rowImages.length < remainingForWall) {
+                  const img = images[imageIndex]
+                  const aspectRatio = getAspectRatio(img)
+
+                  // Check if adding this image would make the row too wide
+                  const newAspectSum = rowAspectSum + aspectRatio
+                  const potentialRowHeight = (wallWidth - rowImages.length * gap) / newAspectSum
+
+                  // If we have at least one image and adding more would make row too short
+                  if (rowImages.length > 0 && potentialRowHeight < targetRowHeight * 0.5) {
+                    break
+                  }
+
+                  rowImages.push({ img, aspectRatio })
+                  rowAspectSum = newAspectSum
+                  imageIndex++
+
+                  // If row height is good, stop adding
+                  if (potentialRowHeight <= targetRowHeight) {
+                    break
+                  }
+                }
+
+                if (rowImages.length === 0) break
+
+                // Calculate row height to fit all images
+                let rowHeight = (wallWidth - (rowImages.length - 1) * gap) / rowAspectSum
+
+                // Clamp row height
+                rowHeight = Math.min(rowHeight, targetRowHeight * 1.5)
+                rowHeight = Math.min(rowHeight, wallHeight - rowY)
+
+                if (rowHeight < 50) break // Too small, stop
+
+                // Check if row fits
+                if (rowY + rowHeight > wallHeight) {
+                  // Put images back for next wall
+                  imageIndex -= rowImages.length
+                  break
+                }
+
+                // Layout images in this row
+                let x = 0
+                rowImages.forEach(({ img, aspectRatio }) => {
+                  const tileWidth = rowHeight * aspectRatio
+                  layout.push({
+                    image: img,
+                    x,
+                    y: rowY,
+                    width: Math.min(tileWidth, wallWidth - x),
+                    height: rowHeight,
+                    delay: tileIndex * 0.02,
+                    aspectRatio
+                  })
+                  x += tileWidth + gap
+                  tileIndex++
+                  wallImageCount++
+                })
+
+                rowY += rowHeight + gap
+              }
+
+              if (layout.length > 0) {
+                result.push({ layout })
+              } else if (imageIndex < images.length) {
+                // Fallback: if algorithm fails, just put one image per wall
+                const img = images[imageIndex]
+                const aspectRatio = getAspectRatio(img)
+                const height = Math.min(wallHeight, wallWidth / aspectRatio)
+                const width = height * aspectRatio
+                result.push({
+                  layout: [{
+                    image: img,
+                    x: (wallWidth - width) / 2,
+                    y: (wallHeight - height) / 2,
+                    width,
+                    height,
+                    delay: 0,
+                    aspectRatio
+                  }]
+                })
+                imageIndex++
+              } else {
+                break
+              }
+            }
+          }
+
+          return result
+        }, [images, containerSize, mosaicTileSize, mosaicImageCount, mosaicControlMode, imageDimensions, drawerOpen, layoutMode])
+
+        const totalWalls = walls.length
+
+        // Calculate estimated total walls based on average images per wall so far
+        const estimatedTotalWalls = useMemo(() => {
+          if (walls.length === 0) return Math.max(1, Math.ceil(images.length / 12)) // Rough estimate: ~12 images per wall
+
+          // Count total images in calculated walls
+          const imagesInWalls = walls.reduce((sum, wall) => sum + wall.layout.length, 0)
+          const avgImagesPerWall = imagesInWalls / walls.length
+
+          // If we've calculated all images, return exact count
+          if (imagesInWalls >= images.length) return walls.length
+
+          // Estimate remaining walls
+          const remainingImages = images.length - imagesInWalls
+          const estimatedRemainingWalls = Math.ceil(remainingImages / avgImagesPerWall)
+          return walls.length + estimatedRemainingWalls
+        }, [walls, images.length])
+
+        // Check if we have all dimensions loaded (for showing estimate indicator)
+        const allDimensionsLoaded = Object.keys(imageDimensions).length >= images.length
+        const isEstimate = !allDimensionsLoaded || walls.reduce((sum, w) => sum + w.layout.length, 0) < images.length
+
+        // Ensure currentWall and displayedWall are valid
+        useEffect(() => {
+          if (totalWalls > 0) {
+            if (currentWall >= totalWalls) {
+              setCurrentWall(totalWalls - 1)
+              setDisplayedWall(totalWalls - 1)
+            } else if (displayedWall >= totalWalls) {
+              setDisplayedWall(Math.min(currentWall, totalWalls - 1))
+            }
+          }
+        }, [totalWalls, currentWall, displayedWall, setCurrentWall])
+
+        const safeCurrentWall = totalWalls > 0 ? Math.min(currentWall, totalWalls - 1) : 0
+        const safeDisplayedWall = totalWalls > 0 ? Math.min(displayedWall, totalWalls - 1) : 0
+        const currentWallData = walls[safeDisplayedWall] || { layout: [] }
+        const nextWallData = nextWall !== null ? (walls[nextWall] || { layout: [] }) : null
+
+        // Smooth navigation with crossfade animation
+        const navigateToWall = useCallback((targetWall) => {
+          if (targetWall < 0 || targetWall >= totalWalls || targetWall === displayedWall || isTransitioning) return
+
+          if (enableAnimation) {
+            setNextWall(targetWall)
+            setIsTransitioning(true)
+            setTransitionPhase('out')
+
+            // Phase 1: Fade out current wall
+            setTimeout(() => {
+              setTransitionPhase('in')
+              setDisplayedWall(targetWall)
+              setCurrentWall(targetWall)
+
+              // Phase 2: Fade in new wall
+              setTimeout(() => {
+                setIsTransitioning(false)
+                setTransitionPhase(null)
+                setNextWall(null)
+              }, mosaicAnimationDuration * 0.6)
+            }, mosaicAnimationDuration * 0.4)
+          } else {
+            setDisplayedWall(targetWall)
+            setCurrentWall(targetWall)
+          }
+        }, [displayedWall, totalWalls, enableAnimation, mosaicAnimationDuration, isTransitioning, setCurrentWall])
+
+        const goToNextWall = useCallback(() => {
+          if (isTransitioning) return
+          if (safeCurrentWall < totalWalls - 1) {
+            navigateToWall(safeCurrentWall + 1)
+          } else if (mosaicLoopWalls && totalWalls > 1) {
+            navigateToWall(0)
+          }
+        }, [safeCurrentWall, totalWalls, isTransitioning, navigateToWall, mosaicLoopWalls])
+
+        const goToPrevWall = useCallback(() => {
+          if (isTransitioning) return
+          if (safeCurrentWall > 0) {
+            navigateToWall(safeCurrentWall - 1)
+          } else if (mosaicLoopWalls && totalWalls > 1) {
+            navigateToWall(totalWalls - 1)
+          }
+        }, [safeCurrentWall, totalWalls, isTransitioning, navigateToWall, mosaicLoopWalls])
+
+        const handleClose = useCallback(() => {
+          if (enableAnimation) {
+            setIsExiting(true)
+            setTimeout(onClose, mosaicAnimationDuration * 0.5)
+          } else {
+            onClose()
+          }
+        }, [onClose, enableAnimation, mosaicAnimationDuration])
+
+        // Keyboard navigation
+        useEffect(() => {
+          const handleKeyDown = (e) => {
+            // Don't handle keys when image viewer is open
+            if (selectedImage) return
+
+            if (e.key === 'Escape' || e.key === keybindings.toggleMosaicMode) {
+              handleClose()
+            } else if (e.key === keybindings.mosaicNextWall || e.key === 'ArrowRight') {
+              goToNextWall()
+            } else if (e.key === keybindings.mosaicPrevWall || e.key === 'ArrowLeft') {
+              goToPrevWall()
+            } else if (e.key === 'ArrowUp') {
+              // More images (smaller tiles) - up means more
+              if (mosaicControlMode === 'imageCount') {
+                setMosaicImageCount(v => Math.min(100, v + 1))
+              } else {
+                setMosaicTileSize(v => Math.max(100, v - 20))
+              }
+            } else if (e.key === 'ArrowDown') {
+              // Fewer images (larger tiles) - down means fewer
+              if (mosaicControlMode === 'imageCount') {
+                setMosaicImageCount(v => Math.max(4, v - 1))
+              } else {
+                setMosaicTileSize(v => Math.min(400, v + 20))
+              }
+            } else if (e.key === keybindings.mosaicToggleDrawer) {
+              setDrawerOpen(v => !v)
+            } else if (e.key === keybindings.mosaicResetTileScale && hoveredTile) {
+              // Reset scale of hovered tile
+              setTileScales(prev => {
+                const newScales = { ...prev }
+                delete newScales[hoveredTile]
+                return newScales
+              })
+            }
+          }
+          document.addEventListener('keydown', handleKeyDown)
+          return () => document.removeEventListener('keydown', handleKeyDown)
+        }, [handleClose, goToNextWall, goToPrevWall, keybindings, hoveredTile, selectedImage, layoutMode, mosaicControlMode, setMosaicImageCount, setMosaicTileSize])
+
+        // Mouse wheel navigation (when not hovering a tile)
+        useEffect(() => {
+          const handleWheel = (e) => {
+            // Don't handle wheel when image viewer is open
+            if (selectedImage) return
+            // Only handle wheel for page navigation when not hovering a tile
+            if (hoveredTile !== null) return
+
+            e.preventDefault()
+            if (e.deltaY > 0) {
+              goToNextWall()
+            } else if (e.deltaY < 0) {
+              goToPrevWall()
+            }
+          }
+
+          const container = containerRef.current
+          if (container) {
+            container.addEventListener('wheel', handleWheel, { passive: false })
+            return () => container.removeEventListener('wheel', handleWheel)
+          }
+        }, [goToNextWall, goToPrevWall, hoveredTile, selectedImage])
+
+        // Handle tile scaling with mouse wheel
+        const handleTileWheel = useCallback((e, tileKey) => {
+          e.preventDefault()
+          e.stopPropagation()
+
+          const delta = e.deltaY > 0 ? -0.1 : 0.1
+          setTileScales(prev => {
+            const currentScale = prev[tileKey] || 1
+            const newScale = Math.max(0.5, Math.min(3, currentScale + delta))
+            return { ...prev, [tileKey]: newScale }
+          })
+        }, [])
+
+        // Reset tile scale on double click
+        const handleTileDoubleClick = useCallback((e, tileKey) => {
+          e.stopPropagation()
+          setTileScales(prev => {
+            const newScales = { ...prev }
+            delete newScales[tileKey]
+            return newScales
+          })
+        }, [])
+
+        // Reset tile scale on middle click
+        const handleTileMiddleClick = useCallback((e, tileKey) => {
+          if (e.button === 1) { // Middle mouse button
+            e.preventDefault()
+            e.stopPropagation()
+            setTileScales(prev => {
+              const newScales = { ...prev }
+              delete newScales[tileKey]
+              return newScales
+            })
+          }
+        }, [])
+
+        // Render a wall
+        const renderWall = (wallData, wallKey, style) => (
+          <div
+            className="absolute inset-0"
+            style={style}
+            key={wallKey}
+          >
+            {wallData.layout.map((tile, idx) => {
+              const tileKey = tile.image.fullPath
+              const scale = tileScales[tileKey] || 1
+              const isHovered = hoveredTile === tileKey
+
+              return (
+                <div
+                  key={tileKey}
+                  className="absolute overflow-visible cursor-pointer transition-all duration-200"
+                  style={{
+                    left: tile.x,
+                    top: tile.y,
+                    width: tile.width,
+                    height: tile.height,
+                    zIndex: isHovered ? 50 : scale > 1 ? 10 : 1
+                  }}
+                  onMouseEnter={() => setHoveredTile(tileKey)}
+                  onMouseLeave={() => setHoveredTile(null)}
+                  onWheel={(e) => handleTileWheel(e, tileKey)}
+                  onDoubleClick={(e) => handleTileDoubleClick(e, tileKey)}
+                  onMouseDown={(e) => handleTileMiddleClick(e, tileKey)}
+                  onClick={() => onImageClick(tile.image)}
+                >
+                  <div
+                    className={`w-full h-full rounded-lg overflow-hidden transition-all duration-200 ${isHovered ? 'ring-2 ring-white/70 shadow-2xl' : ''}`}
+                    style={{
+                      transform: `scale(${scale})`,
+                      transformOrigin: 'center center'
+                    }}
+                  >
+                    <img
+                      src={tile.image.url}
+                      alt={tile.image.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      draggable={false}
+                    />
+                    <div className={`absolute inset-0 bg-gradient-to-t from-black/60 to-transparent transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                      <div className="absolute bottom-2 left-2 right-2 text-white text-sm truncate font-medium">
+                        {tile.image.name}
+                      </div>
+                      {scale !== 1 && (
+                        <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                          {Math.round(scale * 100)}%
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+
+        // Calculate styles based on animation type
+        const getWallStyle = (isOutgoing) => {
+          if (!enableAnimation) return { opacity: 1 }
+
+          const duration = mosaicAnimationDuration
+
+          if (mosaicAnimationType === 'fade') {
+            // Crossfade: both walls visible, opacity changes
+            if (isOutgoing) {
+              return {
+                opacity: transitionPhase === 'out' ? 0 : 1,
+                transition: `opacity ${duration * 0.4}ms cubic-bezier(0.4, 0, 0.2, 1)`
+              }
+            } else {
+              return {
+                opacity: transitionPhase === 'in' ? 1 : 0,
+                transition: `opacity ${duration * 0.6}ms cubic-bezier(0.4, 0, 0.2, 1)`
+              }
+            }
+          } else {
+            // Slide: walls slide in opposite directions
+            if (isOutgoing) {
+              const direction = nextWall > displayedWall ? -1 : 1
+              return {
+                opacity: transitionPhase === 'out' ? 0 : 1,
+                transform: transitionPhase === 'out' ? `translateX(${direction * 30}%) scale(0.95)` : 'translateX(0) scale(1)',
+                transition: `all ${duration * 0.4}ms cubic-bezier(0.4, 0, 0.2, 1)`
+              }
+            } else {
+              const direction = nextWall > displayedWall ? 1 : -1
+              return {
+                opacity: transitionPhase === 'in' ? 1 : 0,
+                transform: transitionPhase === 'in' ? 'translateX(0) scale(1)' : `translateX(${direction * 30}%) scale(0.95)`,
+                transition: `all ${duration * 0.6}ms cubic-bezier(0.4, 0, 0.2, 1)`
+              }
+            }
+          }
+        }
+
+        if (images.length === 0) {
+          return (
+            <div className={`fixed inset-0 z-40 bg-black flex items-center justify-center transition-opacity duration-200`}>
+              <div className="text-white text-xl">{t('mosaic.noImages')}</div>
+            </div>
+          )
+        }
+
+        const containerStyle = {
+          opacity: isEntering ? 0 : isExiting ? 0 : 1,
+          transform: isEntering ? 'scale(0.98)' : isExiting ? 'scale(0.98)' : 'scale(1)',
+          transition: `all ${mosaicAnimationDuration * 0.5}ms cubic-bezier(0.4, 0, 0.2, 1)`
+        }
+
+        const drawerHeight = drawerOpen ? 140 : 0
+
+        // Debug: if walls is empty but we have images, show debug info
+        if (walls.length === 0 && images.length > 0) {
+          return (
+            <div
+              ref={containerRef}
+              className={`fixed inset-0 z-40 bg-black flex flex-col items-center justify-center text-white transition-opacity duration-200`}
+            >
+              <div className="text-xl mb-4">Building gallery...</div>
+              <div className="text-sm text-white/60 space-y-1">
+                <div>Images: {images.length}</div>
+                <div>Container: {containerSize.width} x {containerSize.height}</div>
+                <div>Dimensions loaded: {Object.keys(imageDimensions).length}</div>
+                <div>Tile size: {mosaicTileSize}</div>
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div
+            ref={containerRef}
+            className={`fixed inset-0 z-40 bg-black transition-opacity duration-200`}
+            style={enableAnimation && !selectedImage ? containerStyle : {}}
+          >
+            {/* Wall display */}
+            <div
+              className="relative w-full p-4 transition-all duration-300"
+              style={{ height: drawerOpen ? `calc(100% - 140px)` : '100%' }}
+            >
+              <div className="relative w-full h-full overflow-hidden">
+                {/* Current wall */}
+                {renderWall(
+                  currentWallData,
+                  `wall-${safeDisplayedWall}`,
+                  isTransitioning ? getWallStyle(true) : { opacity: 1 }
+                )}
+              </div>
+            </div>
+
+            {/* Drawer toggle button - only visible when drawer is open */}
+            {drawerOpen && (
+              <button
+                onClick={() => setDrawerOpen(false)}
+                className="absolute left-1/2 -translate-x-1/2 bottom-[143px] bg-white/20 hover:bg-white/30 text-white px-4 py-1 rounded-full text-xs transition-all flex items-center gap-1 z-10"
+              >
+                ▼ {t('mosaic.hideControls')} ({formatKey(keybindings.mosaicToggleDrawer)})
+              </button>
+            )}
+
+            {/* Collapsible Controls Drawer */}
+            <div
+              className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-black/70 transition-all duration-300 overflow-hidden ${
+                drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+              style={{ height: drawerOpen ? 140 : 0 }}
+            >
+              <div className="p-4 pt-4">
+                {/* Layout mode toggle and Tile size slider */}
+                <div className="flex items-center justify-center gap-6 mb-3">
+                  {/* Layout mode toggle */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setLayoutMode(layoutMode === 'fixed' ? 'adaptive' : 'fixed')}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        layoutMode === 'fixed'
+                          ? 'bg-white/30 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {t('mosaic.fixedGrid')}
+                    </button>
+                    <button
+                      onClick={() => setLayoutMode(layoutMode === 'adaptive' ? 'fixed' : 'adaptive')}
+                      className={`px-3 py-1 rounded-lg text-xs transition-all ${
+                        layoutMode === 'adaptive'
+                          ? 'bg-white/30 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {t('mosaic.adaptiveGrid')}
+                    </button>
+                  </div>
+
+                  {/* Size control - shows tile size or image count based on control mode */}
+                  <div className="flex items-center gap-2">
+                    {mosaicControlMode === 'imageCount' ? (
+                      <>
+                        <span className="text-white/60 text-xs">{t('mosaic.imagesPerWall')}</span>
+                        <input
+                          type="range"
+                          min="4"
+                          max="100"
+                          step="1"
+                          value={mosaicImageCount}
+                          onChange={(e) => setMosaicImageCount(parseInt(e.target.value))}
+                          className="w-24 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <span className="text-white/60 text-xs w-8">{mosaicImageCount}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-white/60 text-xs">{t('mosaic.tileSize')}</span>
+                        <input
+                          type="range"
+                          min="100"
+                          max="400"
+                          step="20"
+                          value={mosaicTileSize}
+                          onChange={(e) => setMosaicTileSize(parseInt(e.target.value))}
+                          className="w-24 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <span className="text-white/60 text-xs w-12">{mosaicTileSize}px</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between max-w-4xl mx-auto">
+                  {/* Previous button */}
+                  <button
+                    onClick={goToPrevWall}
+                    disabled={(safeCurrentWall === 0 && !mosaicLoopWalls) || isTransitioning}
+                    className="bg-white/20 hover:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+                  >
+                    ← {t('navigation.back')}
+                  </button>
+
+                  {/* Wall indicator */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-center">
+                      <span className="text-white/80 text-sm">
+                        {t('mosaic.wall')} {safeCurrentWall + 1} {t('mosaic.of')} {isEstimate ? '~' : ''}{isEstimate ? estimatedTotalWalls : totalWalls}
+                      </span>
+                      {isEstimate && (
+                        <span className="text-white/40 text-xs">
+                          ({Object.keys(imageDimensions).length}/{images.length} loaded)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      {walls.slice(0, 20).map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => navigateToWall(idx)}
+                          disabled={isTransitioning}
+                          className={`w-2 h-2 rounded-full transition-all ${
+                            idx === safeCurrentWall ? 'bg-white w-4' : 'bg-white/40 hover:bg-white/60'
+                          }`}
+                        />
+                      ))}
+                      {(walls.length > 20 || isEstimate) && (
+                        <span className="text-white/40 text-xs ml-1">
+                          {walls.length > 20 ? `+${isEstimate ? '~' : ''}${(isEstimate ? estimatedTotalWalls : totalWalls) - 20}` : (isEstimate ? '~' : '')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Next button */}
+                  <button
+                    onClick={goToNextWall}
+                    disabled={(safeCurrentWall >= totalWalls - 1 && !mosaicLoopWalls) || isTransitioning}
+                    className="bg-white/20 hover:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+                  >
+                    {t('navigation.forward')} →
+                  </button>
+                </div>
+
+                {/* Exit hint */}
+                <div className="text-center mt-2 text-white/50 text-xs">
+                  {t('mosaic.exitHint', { key: formatKey(keybindings.toggleMosaicMode) })} • {formatKey(keybindings.mosaicToggleDrawer)}: {t('mosaic.toggleDrawer')} • {t('mosaic.wheelHint')}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })
 
       const createNewTab = (id = Date.now()) => ({
         id,
@@ -1117,6 +1989,38 @@
         const [retainImages, setRetainImages] = useState(
           () => localStorage.getItem('retainImages') === 'true'
         )
+        const [showMosaicMode, setShowMosaicMode] = useState(false)
+        const [mosaicAnimation, setMosaicAnimation] = useState(
+          () => localStorage.getItem('mosaicAnimation') !== 'false'
+        )
+        const [mosaicAnimationType, setMosaicAnimationType] = useState(
+          () => localStorage.getItem('mosaicAnimationType') || 'fade'
+        )
+        const [mosaicAnimationDuration, setMosaicAnimationDuration] = useState(
+          () => parseInt(localStorage.getItem('mosaicAnimationDuration')) || 300
+        )
+        const [mosaicTileSize, setMosaicTileSize] = useState(
+          () => parseInt(localStorage.getItem('mosaicTileSize')) || 200
+        )
+        const [mosaicImageCount, setMosaicImageCount] = useState(() => {
+          const stored = localStorage.getItem('mosaicImageCount')
+          return stored ? parseInt(stored) : 20
+        })
+        const [mosaicControlMode, setMosaicControlMode] = useState(() => {
+          return localStorage.getItem('mosaicControlMode') || 'imageCount'
+        })
+        const [mosaicCurrentWall, setMosaicCurrentWall] = useState(0)
+        const [mosaicLoopWalls, setMosaicLoopWalls] = useState(
+          () => localStorage.getItem('mosaicLoopWalls') !== 'false'
+        )
+
+        // Save mosaic settings to localStorage
+        useEffect(() => {
+          localStorage.setItem('mosaicImageCount', mosaicImageCount.toString())
+        }, [mosaicImageCount])
+        useEffect(() => {
+          localStorage.setItem('mosaicControlMode', mosaicControlMode)
+        }, [mosaicControlMode])
 
         // Derived values from active tab
         const selectedDir = activeTab.selectedDir
@@ -1201,6 +2105,26 @@
         }, [retainImages])
 
         useEffect(() => {
+          localStorage.setItem('mosaicAnimation', mosaicAnimation.toString())
+        }, [mosaicAnimation])
+
+        useEffect(() => {
+          localStorage.setItem('mosaicAnimationType', mosaicAnimationType)
+        }, [mosaicAnimationType])
+
+        useEffect(() => {
+          localStorage.setItem('mosaicAnimationDuration', mosaicAnimationDuration.toString())
+        }, [mosaicAnimationDuration])
+
+        useEffect(() => {
+          localStorage.setItem('mosaicTileSize', mosaicTileSize.toString())
+        }, [mosaicTileSize])
+
+        useEffect(() => {
+          localStorage.setItem('mosaicLoopWalls', mosaicLoopWalls.toString())
+        }, [mosaicLoopWalls])
+
+        useEffect(() => {
           // Save tabs (without images to avoid huge localStorage)
           const tabsToSave = tabs.map(t => ({
             id: t.id,
@@ -1237,6 +2161,7 @@
             setLoading(true)
             setSelectedForDeletion(new Set())
             setDeleteMode(false)
+            setMosaicCurrentWall(0) // Reset mosaic wall position
             const images = await window.electronAPI.getImages(dirPath)
             if (addToHistory) {
               updateActiveTab({
@@ -1325,6 +2250,7 @@
             else if (key === keybindings.openSettings) { setShowSettings(true) }
             else if (key === keybindings.openHelp) { setShowHelp(true) }
             else if (key === keybindings.toggleHistoryPanel || key === 'H') { setShowHistoryPanel(v => !v) }
+            else if (key === keybindings.toggleMosaicMode || key === 'G') { if (filteredImages.length > 0) setShowMosaicMode(v => !v) }
           }
           document.addEventListener('keydown', handleGlobalKeyPress)
           return () => document.removeEventListener('keydown', handleGlobalKeyPress)
@@ -1622,6 +2548,15 @@
                         🗑️ {deleteMode ? t('actions.cancel') : t('deleteMode.selectToDelete')}
                       </button>
                     )}
+                    {allImages.length > 0 && (
+                      <button
+                        onClick={() => setShowMosaicMode(true)}
+                        className={`p-2 rounded-lg transition-all ${currentTheme.button}`}
+                        title={t('mosaic.title') + ' (G)'}
+                      >
+                        🖼️
+                      </button>
+                    )}
                     <button
                       onClick={() => setShowHelp(true)}
                       className={`p-2 rounded-lg transition-all ${currentTheme.button}`}
@@ -1887,7 +2822,28 @@
               clickOutsideToClose={clickOutsideToClose}
               showActionFeedback={showActionFeedback}
               maxImageSize={maxImageSize}
+              fromMosaicMode={showMosaicMode}
             />
+            {showMosaicMode && (
+              <MosaicMode
+                images={filteredImages}
+                onClose={() => setShowMosaicMode(false)}
+                onImageClick={(img) => { setSelectedImage(img) }}
+                keybindings={keybindings}
+                enableAnimation={mosaicAnimation}
+                mosaicAnimationType={mosaicAnimationType}
+                mosaicAnimationDuration={mosaicAnimationDuration}
+                mosaicTileSize={mosaicTileSize}
+                setMosaicTileSize={setMosaicTileSize}
+                mosaicImageCount={mosaicImageCount}
+                setMosaicImageCount={setMosaicImageCount}
+                mosaicControlMode={mosaicControlMode}
+                currentWall={mosaicCurrentWall}
+                setCurrentWall={setMosaicCurrentWall}
+                mosaicLoopWalls={mosaicLoopWalls}
+                selectedImage={selectedImage}
+              />
+            )}
             {deleteMode && selectedForDeletion.size > 0 && (
               <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-800/90 backdrop-blur-sm p-4 border-t border-gray-700">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -1954,6 +2910,7 @@
                     <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDeleteMode)}</kbd> {t('deleteMode.selectToDelete')}</p>
                     <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleDarkMode)}</kbd> {t('darkMode.toggle')}</p>
                     <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleHistoryPanel)}</kbd> {t('navigation.historyAndRecent')}</p>
+                    <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.toggleMosaicMode)}</kbd> {t('mosaic.title')}</p>
                     <p><kbd className="px-2 py-1 bg-gray-600 rounded text-white">{formatKey(keybindings.openSettings)}</kbd> {t('settings.title')}</p>
                   </div>
 
@@ -1989,6 +2946,20 @@
                 setEditingKey={setEditingKey}
                 retainImages={retainImages}
                 setRetainImages={setRetainImages}
+                mosaicAnimation={mosaicAnimation}
+                setMosaicAnimation={setMosaicAnimation}
+                mosaicAnimationType={mosaicAnimationType}
+                setMosaicAnimationType={setMosaicAnimationType}
+                mosaicAnimationDuration={mosaicAnimationDuration}
+                setMosaicAnimationDuration={setMosaicAnimationDuration}
+                mosaicTileSize={mosaicTileSize}
+                setMosaicTileSize={setMosaicTileSize}
+                mosaicImageCount={mosaicImageCount}
+                setMosaicImageCount={setMosaicImageCount}
+                mosaicControlMode={mosaicControlMode}
+                setMosaicControlMode={setMosaicControlMode}
+                mosaicLoopWalls={mosaicLoopWalls}
+                setMosaicLoopWalls={setMosaicLoopWalls}
               />
             )}
           </div>
@@ -2014,7 +2985,21 @@
         editingKey,
         setEditingKey,
         retainImages,
-        setRetainImages
+        setRetainImages,
+        mosaicAnimation,
+        setMosaicAnimation,
+        mosaicAnimationType,
+        setMosaicAnimationType,
+        mosaicAnimationDuration,
+        setMosaicAnimationDuration,
+        mosaicTileSize,
+        setMosaicTileSize,
+        mosaicImageCount,
+        setMosaicImageCount,
+        mosaicControlMode,
+        setMosaicControlMode,
+        mosaicLoopWalls,
+        setMosaicLoopWalls
       }) => {
         const { t, locale, setLocale, availableLocales } = useI18n()
         return (
@@ -2102,6 +3087,103 @@
                   className={`px-3 py-1 rounded ${retainImages ? 'bg-emerald-500 text-white' : currentTheme.button}`}
                 >
                   {retainImages ? t('settings.on') : t('settings.off')}
+                </button>
+              </div>
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
+                <span>{t('mosaic.enableAnimation')}</span>
+                <button
+                  onClick={() => setMosaicAnimation(v => !v)}
+                  className={`px-3 py-1 rounded ${mosaicAnimation ? 'bg-emerald-500 text-white' : currentTheme.button}`}
+                >
+                  {mosaicAnimation ? t('settings.on') : t('settings.off')}
+                </button>
+              </div>
+              {mosaicAnimation && (
+                <>
+                  <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
+                    <span>{t('mosaic.animationType')}</span>
+                    <select
+                      value={mosaicAnimationType}
+                      onChange={e => setMosaicAnimationType(e.target.value)}
+                      className={`px-3 py-1 rounded ${currentTheme.button}`}
+                    >
+                      <option value="fade">{t('mosaic.animationFade')}</option>
+                      <option value="slide">{t('mosaic.animationSlide')}</option>
+                    </select>
+                  </div>
+                  <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
+                    <span>{t('mosaic.animationDuration')}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="100"
+                        max="800"
+                        step="50"
+                        value={mosaicAnimationDuration}
+                        onChange={e => setMosaicAnimationDuration(parseInt(e.target.value))}
+                        className="w-20"
+                      />
+                      <span className="w-14 text-right">{mosaicAnimationDuration}ms</span>
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
+                <span>{t('mosaic.defaultTileSize')}</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="100"
+                    max="400"
+                    step="20"
+                    value={mosaicTileSize}
+                    onChange={e => setMosaicTileSize(parseInt(e.target.value))}
+                    className="w-20"
+                  />
+                  <span className="w-14 text-right">{mosaicTileSize}px</span>
+                </div>
+              </div>
+              <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
+                <span>{t('mosaic.controlMode')}</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMosaicControlMode('tileSize')}
+                    className={`px-3 py-1 rounded text-sm ${mosaicControlMode === 'tileSize' ? 'bg-emerald-500 text-white' : currentTheme.button}`}
+                  >
+                    {t('mosaic.tileSize')}
+                  </button>
+                  <button
+                    onClick={() => setMosaicControlMode('imageCount')}
+                    className={`px-3 py-1 rounded text-sm ${mosaicControlMode === 'imageCount' ? 'bg-emerald-500 text-white' : currentTheme.button}`}
+                  >
+                    {t('mosaic.imageCount')}
+                  </button>
+                </div>
+              </div>
+              {mosaicControlMode === 'imageCount' && (
+                <div className={`flex items-center justify-between py-2 border-b ${currentTheme.border}`}>
+                  <span>{t('mosaic.imagesPerWall')}</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="4"
+                      max="100"
+                      step="1"
+                      value={mosaicImageCount}
+                      onChange={e => setMosaicImageCount(parseInt(e.target.value))}
+                      className="w-20"
+                    />
+                    <span className="w-10 text-right">{mosaicImageCount}</span>
+                  </div>
+                </div>
+              )}
+              <div className={`flex items-center justify-between py-2 mb-4 border-b ${currentTheme.border}`}>
+                <span>{t('mosaic.loopWalls')}</span>
+                <button
+                  onClick={() => setMosaicLoopWalls(v => !v)}
+                  className={`px-3 py-1 rounded ${mosaicLoopWalls ? 'bg-emerald-500 text-white' : currentTheme.button}`}
+                >
+                  {mosaicLoopWalls ? t('settings.on') : t('settings.off')}
                 </button>
               </div>
 

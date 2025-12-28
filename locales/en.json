@@ -62,7 +62,9 @@
     "resize": "Resize",
     "rename": "Rename",
     "modified": "Modified",
-    "of": "of"
+    "of": "of",
+    "showMetadata": "Show metadata",
+    "hideMetadata": "Hide metadata"
   },
   "deleteMode": {
     "selectToDelete": "Select to Delete",
@@ -140,7 +142,13 @@
     "toggleDarkMode": "Toggle Dark Mode",
     "openSettings": "Open Settings",
     "openHelp": "Open Help",
-    "toggleHistoryPanel": "Toggle History Panel"
+    "toggleHistoryPanel": "Toggle History Panel",
+    "toggleMetadata": "Toggle Metadata",
+    "toggleMosaicMode": "Toggle Mosaic Mode",
+    "mosaicNextWall": "Mosaic: Next Wall",
+    "mosaicPrevWall": "Mosaic: Previous Wall",
+    "mosaicResetTileScale": "Mosaic: Reset Tile Scale",
+    "mosaicToggleDrawer": "Mosaic: Toggle Controls"
   },
   "prompts": {
     "enterNewFilename": "Enter new filename:",
@@ -158,5 +166,31 @@
   },
   "darkMode": {
     "toggle": "Toggle dark mode"
+  },
+  "mosaic": {
+    "title": "Mosaic Mode",
+    "wall": "Wall",
+    "of": "of",
+    "noImages": "No images to display",
+    "enableAnimation": "Enable mosaic animation",
+    "exitHint": "Press {key} or Escape to exit",
+    "tileSize": "Tile size",
+    "defaultTileSize": "Default tile size",
+    "animationType": "Animation type",
+    "animationFade": "Fade",
+    "animationSlide": "Slide",
+    "animationDuration": "Animation duration",
+    "wheelHint": "Scroll to change walls, hover + scroll to zoom tile",
+    "loopWalls": "Loop walls (last to first)",
+    "showControls": "Show controls",
+    "hideControls": "Hide controls",
+    "toggleDrawer": "Toggle controls",
+    "controlMode": "Control mode",
+    "imageCount": "Image Count",
+    "imagesPerWall": "Images per wall",
+    "estimated": "estimated",
+    "loaded": "loaded",
+    "fixedGrid": "Fixed Grid",
+    "adaptiveGrid": "Adaptive"
   }
 }

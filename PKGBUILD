@@ -1,31 +1,31 @@
 # Maintainer: CamelliaV
 pkgname=hanasato
 pkgver=1.0.0
-pkgrel=1
+pkgrel=4
 pkgdesc="Hanasato - Fast local image viewer with Pinterest-style layout - optimized for Zen4 + NVIDIA Blackwell"
 arch=('x86_64')
 url="https://github.com/camelliav/hanasato"
 license=('MIT')
 depends=(
-    'electron'           # Use system Electron for better integration
-    'gtk3'
-    'nss'
-    'libxss'
-    'libxtst'
-    'xdg-utils'
-    'libnotify'
-    'libappindicator-gtk3'
-    # NVIDIA Blackwell (50 series) specific
-    'nvidia-utils'       # NVIDIA driver utilities
-    'libvdpau'           # VDPAU runtime
-    'libva-nvidia-driver' # VA-API for NVIDIA (optional but recommended)
+  'electron' # Use system Electron for better integration
+  'gtk3'
+  'nss'
+  'libxss'
+  'libxtst'
+  'xdg-utils'
+  'libnotify'
+  'libappindicator-gtk3'
+  # NVIDIA Blackwell (50 series) specific
+  'nvidia-utils'        # NVIDIA driver utilities
+  'libvdpau'            # VDPAU runtime
+  'libva-nvidia-driver' # VA-API for NVIDIA (optional but recommended)
 )
 makedepends=('npm' 'nodejs')
 optdepends=(
-    'nvidia-settings: NVIDIA GPU configuration'
-    'vulkan-tools: Vulkan diagnostics'
-    'nvtop: NVIDIA GPU monitoring'
-    'lib32-nvidia-utils: 32-bit NVIDIA support'
+  'nvidia-settings: NVIDIA GPU configuration'
+  'vulkan-tools: Vulkan diagnostics'
+  'nvtop: NVIDIA GPU monitoring'
+  'lib32-nvidia-utils: 32-bit NVIDIA support'
 )
 options=('!strip' '!debug')
 
@@ -43,28 +43,28 @@ export LDFLAGS="-Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now"
 export MAKEFLAGS="-j$(nproc)"
 
 build() {
-    cd "$startdir"
+  cd "$startdir"
 
-    # Install dependencies with production flags
-    npm install --production=false
+  # Install dependencies with production flags
+  npm install --production=false
 
-    # Package with optimizations
-    npm run package -- --platform=linux --arch=x64
+  # Package with optimizations
+  npm run package -- --platform=linux --arch=x64
 
-    # Strip Electron debug symbols for smaller size (optional)
-    # find out/hanasato-linux-x64 -type f -name "*.so" -exec strip --strip-unneeded {} \; 2>/dev/null || true
+  # Strip Electron debug symbols for smaller size (optional)
+  # find out/hanasato-linux-x64 -type f -name "*.so" -exec strip --strip-unneeded {} \; 2>/dev/null || true
 }
 
 package() {
-    cd "$startdir"
+  cd "$startdir"
 
-    # Install the app
-    install -dm755 "$pkgdir/opt/$pkgname"
-    cp -r out/hanasato-linux-x64/* "$pkgdir/opt/$pkgname/"
+  # Install the app
+  install -dm755 "$pkgdir/opt/$pkgname"
+  cp -r out/hanasato-linux-x64/* "$pkgdir/opt/$pkgname/"
 
-    # Create executable wrapper with performance flags
-    install -dm755 "$pkgdir/usr/bin"
-    cat > "$pkgdir/usr/bin/hanasato" << 'EOF'
+  # Create executable wrapper with performance flags
+  install -dm755 "$pkgdir/usr/bin"
+  cat >"$pkgdir/usr/bin/hanasato" <<'EOF'
 #!/bin/bash
 # Performance flags for Zen4 CPU + NVIDIA Blackwell GPU + KDE
 export ELECTRON_ENABLE_LOGGING=0
@@ -99,11 +99,11 @@ exec /opt/hanasato/hanasato \
     --num-raster-threads=4 \
     "$@"
 EOF
-    chmod 755 "$pkgdir/usr/bin/hanasato"
+  chmod 755 "$pkgdir/usr/bin/hanasato"
 
-    # Install desktop file with GPU acceleration hint
-    install -dm755 "$pkgdir/usr/share/applications"
-    cat > "$pkgdir/usr/share/applications/hanasato.desktop" << EOF
+  # Install desktop file with GPU acceleration hint
+  install -dm755 "$pkgdir/usr/share/applications"
+  cat >"$pkgdir/usr/share/applications/hanasato.desktop" <<EOF
 [Desktop Entry]
 Name=Hanasato
 Comment=Fast local image viewer with Pinterest-style layout
@@ -117,17 +117,17 @@ StartupWMClass=hanasato
 Keywords=image;photo;picture;viewer;gallery;hanasato;
 EOF
 
-    # Install icon
-    if [ -f "assets/icon.png" ]; then
-        install -Dm644 assets/icon.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/hanasato.png"
-    fi
-    if [ -f "assets/icon-256.png" ]; then
-        install -Dm644 assets/icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/hanasato.png"
-    fi
+  # Install icon
+  if [ -f "assets/icon.png" ]; then
+    install -Dm644 assets/icon.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/hanasato.png"
+  fi
+  if [ -f "assets/icon-256.png" ]; then
+    install -Dm644 assets/icon-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/hanasato.png"
+  fi
 
-    # Fix permissions
-    chmod -R 755 "$pkgdir/opt/$pkgname"
+  # Fix permissions
+  chmod -R 755 "$pkgdir/opt/$pkgname"
 
-    # Install license
-    install -Dm644 /dev/null "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  # Install license
+  install -Dm644 /dev/null "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
